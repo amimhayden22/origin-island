@@ -40,6 +40,8 @@
     .install { display: grid; gap: var(--space-md); }
     @media (min-width: 52rem) { .install { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     .req { margin-top: var(--space-lg); }
+    .credit { display: inline-flex; align-items: center; gap: 0.4rem; }
+    .credit .icon { width: 1rem; height: 1rem; }
     .footer-note { margin-top: var(--space-sm); color: var(--text-muted); font-size: var(--fs-xs); max-width: 70ch; }
 
     /* Langit luar angkasa ala latar bintang Origin (thumbnail & video): titik bintang dengan kecerahan
@@ -306,7 +308,10 @@ cd origin-island
         <li><a href="https://github.com/amimhayden22/origin-island/blob/main/LICENSE">Lisensi MIT</a></li>
       </ul></div>
     </div>
-    <div class="site-footer__bottom"><span>© 2026 <a href="https://guskhamim.com">Gus Khamim</a></span></div>
+    <div class="site-footer__bottom">
+      <span class="credit"><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-code"/></svg>Origin Island dibuat oleh <a href="https://guskhamim.com">Gus Khamim</a></span>
+      <span>&copy; <span data-year>2026</span></span>
+    </div>
     <p class="footer-note">Origin Island adalah proyek independen dan tidak berafiliasi dengan Anthropic atau Apple. Claude dan Claude Code adalah merek dagang Anthropic; Dynamic Island adalah merek dagang Apple.</p>
   </div>
 </footer>
@@ -335,6 +340,9 @@ cd origin-island
   }
   sky.innerHTML = '<svg viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="xMidYMid slice" fill="currentColor">' + out + "</svg>";
 })();
+
+/* Tahun hak cipta selalu tahun berjalan (angka di HTML hanya cadangan bila JavaScript mati). */
+(function () { var y = document.querySelector("[data-year]"); if (y) y.textContent = new Date().getFullYear(); })();
 
 /* Jumlah star GitHub (API publik, disimpan sementara di sesi supaya tidak meminta berulang). */
 (function () {
