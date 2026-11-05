@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="id" data-origin-sprite="assets/origin-sprite.svg">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Origin Island — Notifikasi ala Dynamic Island untuk Claude Code</title>
+  <meta name="description" content="Pil kecil di tepi atas layar Windows yang memberi tahu saat Claude Code selesai, butuh izin, atau gagal, lengkap dengan sisa kuota Claude. Gratis dan open-source.">
+  <meta property="og:title" content="Origin Island">
+  <meta property="og:description" content="Notifikasi ala Dynamic Island untuk Claude Code di Windows + WSL.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="img/done.png">
+  <link rel="icon" href="assets/ogin/ogin-idle.gif" type="image/gif">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="assets/origin.css">
+  <script>try{var t=localStorage.getItem("origin-theme");if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+  <script src="assets/origin.js" defer></script>
+  <style>
+    /* Hanya tata letak khusus halaman ini; semua warna lewat variabel Origin. */
+    .brand__name { font: var(--fw-bold) 1.25rem/1 var(--font-display); letter-spacing: -0.03em; }
+    .shot { display: grid; gap: var(--space-xs); justify-items: center; margin: 0; }
+    .shot img { display: block; max-width: 100%; height: auto; }
+    .shot figcaption { color: var(--text-muted); font-size: var(--fs-sm); text-align: center; }
+    .shot--hero img { width: min(100%, 30rem); }
+    .shots { display: grid; gap: var(--space-lg); align-items: start; }
+    @media (min-width: 52rem) { .shots { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .shots__pair { display: grid; gap: var(--space-md); justify-items: center; align-content: start; }
+    .shots__pair img { width: min(100%, 16rem); }
+    .shots__wide img { width: min(100%, 25rem); }
+    .states { display: grid; gap: var(--space-sm); grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr)); margin: 0; padding: 0; list-style: none; }
+    .state { display: grid; gap: 0.35rem; justify-items: center; padding: var(--space-md) var(--space-sm); border-radius: var(--radius-lg); background: var(--content-ink); color: var(--content-mist); text-align: center; }
+    .state img { width: 5rem; height: 5rem; image-rendering: pixelated; }
+    .state strong { font: var(--fw-bold) var(--fs-md)/1.2 var(--font-display); color: var(--content-white); }
+    .state span { font-size: var(--fs-xs); line-height: 1.4; }
+    .code-card { display: grid; gap: var(--space-xs); min-width: 0; padding: var(--space-md); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); background: var(--bg-surface); }
+    .code-card__bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-xs); }
+    .code-card__bar strong { font-size: var(--fs-sm); }
+    .code-card pre { overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
+    .install { display: grid; gap: var(--space-md); }
+    @media (min-width: 52rem) { .install { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .req { margin-top: var(--space-lg); }
+    .footer-note { margin-top: var(--space-sm); color: var(--text-muted); font-size: var(--fs-xs); max-width: 70ch; }
+  </style>
+</head>
+<body>
+<a class="skip-link" href="#isi">Langsung ke isi</a>
+
+<header class="site-header">
+  <div class="container site-header__inner">
+    <a class="brand" href="#isi" aria-label="Origin Island, ke awal halaman">
+      <svg class="brand__logo" role="img" aria-label="Origin"><use href="assets/origin-sprite.svg#origin-logo"/></svg>
+      <span class="brand__name">Island</span>
+    </a>
+    <nav class="site-header__nav" id="menu" aria-label="Menu utama">
+      <div class="nav-head">
+        <svg class="brand__logo" role="img" aria-label="Origin"><use href="assets/origin-sprite.svg#origin-logo"/></svg>
+        <button class="btn btn--ghost btn--icon btn--sm" type="button" data-menu-toggle aria-controls="menu" aria-expanded="false" aria-label="Tutup menu"><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-x"/></svg></button>
+      </div>
+      <ul class="nav">
+        <li><a href="#fitur">Fitur</a></li>
+        <li><a href="#tampilan">Tampilan</a></li>
+        <li><a href="#pasang">Cara pasang</a></li>
+        <li><a href="#faq">FAQ</a></li>
+      </ul>
+    </nav>
+    <div class="site-header__actions">
+      <div class="segmented segmented--icons hide-mobile" role="group" aria-label="Mode tampilan">
+        <button type="button" data-theme-choice="light" aria-label="Terang" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-sun"/></svg></button>
+        <button type="button" data-theme-choice="system" aria-label="Ikuti sistem" aria-pressed="true"><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-monitor"/></svg></button>
+        <button type="button" data-theme-choice="dark" aria-label="Gelap" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-moon"/></svg></button>
+      </div>
+      <a class="btn btn--secondary btn--sm" href="https://github.com/amimhayden22/origin-island"><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-code"/></svg>GitHub</a>
+      <button class="btn btn--ghost btn--icon btn--sm menu-toggle" type="button" data-menu-toggle aria-controls="menu" aria-expanded="false" aria-label="Buka menu"><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-menu"/></svg></button>
+    </div>
+  </div>
+</header>
+
+<main id="isi">
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="container split">
+      <div class="hero__copy">
+        <span class="eyebrow">Untuk Claude Code di Windows + WSL</span>
+        <h1>Tahu kapan Claude selesai, tanpa terus mengecek terminal</h1>
+        <p class="lead">Origin Island adalah pil kecil ala Dynamic Island di tepi atas layar. Ia memberi tahu saat Claude Code selesai, butuh izin, atau gagal, lengkap dengan sisa kuota Claude Anda.</p>
+        <div class="cluster">
+          <a class="btn btn--accent" href="#pasang"><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-download"/></svg>Pasang sekarang</a>
+          <a class="btn btn--secondary" href="#tampilan">Lihat tampilannya</a>
+        </div>
+        <div class="hero__meta">
+          <span><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-check"/></svg>Gratis &amp; open-source</span>
+          <span><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-check"/></svg>Hanya fitur resmi Claude Code</span>
+          <span><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-check"/></svg>Tanpa install aplikasi lain</span>
+        </div>
+      </div>
+      <div class="hero__visual">
+        <svg class="orn-inline orn-inline--hide-sm" style="--orn-w: 8rem" aria-hidden="true"><use href="assets/origin-sprite.svg#orn-launch"/></svg>
+        <figure class="shot shot--hero">
+          <img src="img/done.png" width="776" height="402" alt="Notifikasi Origin Island: Claude selesai di proyek web-app, dengan cuplikan balasan terakhir dan sisa kuota 34% sesi 5 jam serta 58% mingguan.">
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- Fitur -->
+  <section class="section section--muted" id="fitur" aria-labelledby="h-fitur">
+    <div class="container">
+      <header class="section-head">
+        <span class="eyebrow">Fitur</span>
+        <h2 id="h-fitur">Semua yang perlu Anda tahu, dalam satu pil</h2>
+        <p class="lead">Kerjakan hal lain selagi Claude bekerja. Pil akan memanggil Anda saat dibutuhkan.</p>
+      </header>
+      <div class="grid">
+        <div class="feature"><span class="feature__icon"><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-bell"/></svg></span><h3>Notifikasi + suara</h3><p>Muncul saat Claude selesai, butuh izin, atau gagal, lengkap dengan cuplikan balasan terakhirnya.</p></div>
+        <div class="feature"><span class="feature__icon"><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-chart-pie"/></svg></span><h3>Kuota selalu terlihat</h3><p>Sisa kuota sesi 5 jam dan mingguan sebagai cincin, plus hitung mundur reset. Tak perlu lagi membuka <code>/usage</code>.</p></div>
+        <div class="feature"><span class="feature__icon"><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-laptop"/></svg></span><h3>Klik, langsung ke terminal</h3><p>Klik notifikasi untuk memunculkan Windows Terminal atau VS Code tempat sesi itu berjalan.</p></div>
+        <div class="feature"><span class="feature__icon"><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-users"/></svg></span><h3>Banyak sesi sekaligus</h3><p>Pantau beberapa sesi Claude Code paralel beserta statusnya masing-masing.</p></div>
+        <div class="feature"><span class="feature__icon"><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-monitor"/></svg></span><h3>Multi-monitor</h3><p>Seret pil ke kiri, kanan, atau ke monitor lain. Posisinya diingat, dan pil bersembunyi saat ada video fullscreen.</p></div>
+        <div class="feature"><span class="feature__icon"><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-shield"/></svg></span><h3>Ringan &amp; aman</h3><p>Hanya berjalan selama WSL hidup, tidak mencuri fokus, dan tidak menyentuh token login Anda.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tampilan -->
+  <section class="section" id="tampilan" aria-labelledby="h-tampilan">
+    <div class="container">
+      <header class="section-head">
+        <span class="eyebrow">Tampilan</span>
+        <h2 id="h-tampilan">Kecil saat diam, membesar saat perlu</h2>
+        <p class="lead">Arahkan kursor ke pil untuk melihat detail kuota, sesi aktif, dan tombol pengaturan.</p>
+      </header>
+      <div class="shots">
+        <div class="shots__pair">
+          <figure class="shot"><img src="img/idle.png" width="496" height="88" alt="Pil Origin Island saat siaga: maskot, tulisan Siaga, dan cincin kuota 34%." loading="lazy"><figcaption>Siaga: maskot dan cincin kuota</figcaption></figure>
+          <figure class="shot"><img src="img/working.png" width="496" height="88" alt="Pil Origin Island saat Claude bekerja di proyek web-app." loading="lazy"><figcaption>Bekerja: nama proyek ikut tampil</figcaption></figure>
+          <figure class="shot shots__wide"><img src="img/attention.png" width="776" height="370" alt="Notifikasi Origin Island: Claude butuh izin untuk menjalankan Bash di proyek api-server." loading="lazy"><figcaption>Butuh izin: notifikasi + suara</figcaption></figure>
+        </div>
+        <figure class="shot shots__wide"><img src="img/hover.png" width="776" height="608" alt="Panel Origin Island saat disorot: cincin kuota sesi 5 jam 34% dan mingguan 58%, tiga sesi aktif, dan tombol perbarui, suara, tes suara, serta ke tengah." loading="lazy"><figcaption>Saat disorot: kuota, sesi aktif, dan tombol</figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- Status maskot -->
+  <section class="section section--muted" id="ogin" aria-labelledby="h-ogin">
+    <div class="container">
+      <header class="section-head">
+        <span class="eyebrow">Maskot</span>
+        <h2 id="h-ogin">Kenalan dengan Ogin</h2>
+        <p class="lead">Roket pixel kecil yang menunjukkan apa yang sedang Claude kerjakan. Sekali lirik, langsung tahu.</p>
+      </header>
+      <ul class="states">
+        <li class="state"><img src="assets/ogin/ogin-idle.gif" width="128" height="128" alt="" loading="lazy"><strong>Siaga</strong><span>Belum ada sesi aktif</span></li>
+        <li class="state"><img src="assets/ogin/ogin-thinking.gif" width="128" height="128" alt="" loading="lazy"><strong>Berpikir</strong><span>Claude menyusun jawaban</span></li>
+        <li class="state"><img src="assets/ogin/ogin-working.gif" width="128" height="128" alt="" loading="lazy"><strong>Bekerja</strong><span>Alat sedang berjalan</span></li>
+        <li class="state"><img src="assets/ogin/ogin-waiting.gif" width="128" height="128" alt="" loading="lazy"><strong>Butuh izin</strong><span>Menunggu jawaban Anda</span></li>
+        <li class="state"><img src="assets/ogin/ogin-done.gif" width="128" height="128" alt="" loading="lazy"><strong>Selesai</strong><span>Tugas beres</span></li>
+        <li class="state"><img src="assets/ogin/ogin-error.gif" width="128" height="128" alt="" loading="lazy"><strong>Gagal</strong><span>Alat atau Claude error</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Cara pasang -->
+  <section class="section" id="pasang" aria-labelledby="h-pasang">
+    <div class="container">
+      <header class="section-head">
+        <span class="eyebrow">Cara pasang</span>
+        <h2 id="h-pasang">Pasang dalam satu menit</h2>
+        <p class="lead">Paling mudah: minta Claude Code yang memasangnya untuk Anda.</p>
+      </header>
+
+      <ol class="process" style="--process-cols: 3">
+        <li><strong>Buka Claude Code di WSL</strong><p>Jalankan <code>claude</code> dari terminal WSL (bukan PowerShell).</p></li>
+        <li><strong>Minta Claude memasang</strong><p>Salin pesan di bawah. Kalau Claude meminta izin, setujui: installer mengubah setelan Claude Code dan <code>~/.bashrc</code>.</p></li>
+        <li><strong>Kirim satu prompt</strong><p>Pil muncul di tengah atas layar, dan kuota tampil setelah prompt pertama.</p></li>
+      </ol>
+
+      <div class="install" style="margin-top: var(--space-lg)">
+        <div class="code-card">
+          <div class="code-card__bar"><strong>Pesan untuk Claude Code</strong><button class="btn btn--secondary btn--sm" type="button" data-copy-target="#kode-claude"><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-copy"/></svg>Salin</button></div>
+          <pre><code id="kode-claude">Tolong install https://github.com/amimhayden22/origin-island — clone repo-nya lalu jalankan ./install.sh, baca README-nya dulu.</code></pre>
+        </div>
+        <div class="code-card">
+          <div class="code-card__bar"><strong>Atau manual dari terminal WSL</strong><button class="btn btn--secondary btn--sm" type="button" data-copy-target="#kode-manual"><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-copy"/></svg>Salin</button></div>
+          <pre><code id="kode-manual">git clone https://github.com/amimhayden22/origin-island.git
+cd origin-island
+./install.sh</code></pre>
+        </div>
+      </div>
+
+      <div class="card req">
+        <h3>Persyaratan</h3>
+        <dl class="kv">
+          <dt>Sistem</dt><dd>Windows 10/11 dengan WSL2. PowerShell sudah bawaan Windows.</dd>
+          <dt>Claude Code</dt><dd>Terpasang di dalam WSL dan sudah login.</dd>
+          <dt>Kuota</dt><dd>Butuh langganan Claude Pro/Max. Dengan API key, notifikasi tetap jalan tanpa kuota.</dd>
+          <dt>Lainnya</dt><dd><code>python3</code> dan <code>git</code> di WSL (sudah ada di Ubuntu bawaan).</dd>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="section section--muted" id="faq" aria-labelledby="h-faq">
+    <div class="container">
+      <header class="section-head">
+        <span class="eyebrow">FAQ</span>
+        <h2 id="h-faq">Pertanyaan yang sering muncul</h2>
+      </header>
+      <div class="faq">
+        <details name="faq">
+          <summary>Apakah aman untuk akun Claude saya?<svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-plus"/></svg></summary>
+          <div><p>Ya. Secara default Origin Island hanya memakai fitur resmi Claude Code (hook dan statusline). Ia tidak membaca token login dan tidak menghubungi server mana pun.</p></div>
+        </details>
+        <details name="faq">
+          <summary>Dari mana angka kuotanya?<svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-plus"/></svg></summary>
+          <div><p>Dari data yang dikirim Claude Code ke statusline setiap kali Anda memakainya. Kalau Claude Code lama tidak dipakai, angka terakhir tetap tampil beserta jam pembaruannya.</p></div>
+        </details>
+        <details name="faq">
+          <summary>Apakah membuat laptop berat?<svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-plus"/></svg></summary>
+          <div><p>Tidak. Pil hanya berjalan selama WSL hidup, memakai sekitar 2–3% dari satu core CPU, dan bersembunyi saat ada video atau game fullscreen.</p></div>
+        </details>
+        <details name="faq">
+          <summary>Kenapa kuota saya tidak tampil?<svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-plus"/></svg></summary>
+          <div><p>Pastikan Anda login dengan langganan Pro/Max, lalu kirim satu prompt. Kalau Anda sudah punya statusline sendiri, Origin Island tidak menimpanya, jadi kuota tidak tampil.</p></div>
+        </details>
+        <details name="faq">
+          <summary>Bagaimana cara menghapusnya?<svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-plus"/></svg></summary>
+          <div><p>Klik ikon tempat sampah di panel pil, lalu konfirmasi. Bisa juga dengan <code>./uninstall.sh</code> dari folder repo. Semua hook, setelan, dan file ikut dibersihkan.</p></div>
+        </details>
+        <details name="faq">
+          <summary>Apakah mendukung AI selain Claude?<svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-plus"/></svg></summary>
+          <div><p>Saat ini khusus Claude Code. Dukungan untuk tool lain seperti Antigravity sedang direncanakan.</p></div>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="section">
+    <div class="container">
+      <div class="cta-band">
+        <div class="cta-band__copy"><h2>Biar Claude yang mengabari Anda</h2><p>Gratis, open-source, dan bisa dihapus kapan saja.</p></div>
+        <div class="cta-band__end"><svg class="orn-inline" aria-hidden="true"><use href="assets/origin-sprite.svg#orn-trail"/></svg><a class="btn btn--accent" href="https://github.com/amimhayden22/origin-island"><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-code"/></svg>Buka di GitHub</a></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="site-footer__grid">
+      <div class="site-footer__brand">
+        <svg class="brand__logo" role="img" aria-label="Origin"><use href="assets/origin-sprite.svg#origin-logo"/></svg>
+        <p>Notifikasi ala Dynamic Island untuk Claude Code di Windows + WSL.</p>
+      </div>
+      <div><h4>Proyek</h4><ul>
+        <li><a href="https://github.com/amimhayden22/origin-island">Repositori GitHub</a></li>
+        <li><a href="https://github.com/amimhayden22/origin-island#readme">Dokumentasi</a></li>
+        <li><a href="https://github.com/amimhayden22/origin-island/issues">Laporkan masalah</a></li>
+      </ul></div>
+      <div><h4>Pembuat</h4><ul>
+        <li><a href="https://guskhamim.com">Gus Khamim</a></li>
+        <li><a href="https://github.com/amimhayden22/origin-island/blob/main/LICENSE">Lisensi MIT</a></li>
+      </ul></div>
+    </div>
+    <div class="site-footer__bottom"><span>© 2026 <a href="https://guskhamim.com">Gus Khamim</a></span><span>Dibuat dengan Origin Design System</span></div>
+    <p class="footer-note">Origin Island adalah proyek independen dan tidak berafiliasi dengan Anthropic atau Apple. Claude dan Claude Code adalah merek dagang Anthropic; Dynamic Island adalah merek dagang Apple.</p>
+  </div>
+</footer>
+</body>
+</html>

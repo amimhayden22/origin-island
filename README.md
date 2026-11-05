@@ -5,7 +5,7 @@
 Pil kecil di tepi atas layar yang memberi tahu saat Claude selesai, butuh izin, atau gagal, lengkap
 dengan maskot pixel **ogin** dan sisa kuota Claude Anda, tanpa perlu membuka `/usage`.
 
-Dibuat oleh **[Gus Khamim](https://guskhamim.com)**.
+Dibuat oleh **[Gus Khamim](https://guskhamim.com)** · [Situs resmi](https://amimhayden22.github.io/origin-island/)
 
 ![Claude selesai](docs/done.png)
 
