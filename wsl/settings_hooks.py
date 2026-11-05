@@ -54,7 +54,7 @@ def main():
     if action == "install":
         if current and not ours:
             print("   ! statusLine sudah dipakai skrip lain, tidak diubah.")
-            print("     Kuota akan diambil dari API usage (lebih jarang diperbarui).")
+            print("     Kuota tidak tampil, kecuali \"usageApiFallback\": true di config.json (lihat README).")
         else:
             script, usage = sys.argv[4], sys.argv[5]
             settings["statusLine"] = {

@@ -14,7 +14,8 @@ dengan maskot pixel **ogin** dan sisa kuota Claude Anda, tanpa perlu membuka `/u
 - **Maskot ogin** (roket pixel 16×16) dengan animasi per status: `idle`, `thinking`, `working`,
   `waiting`, `done`, `error`.
 - **Kuota langganan** sesi 5 jam & mingguan sebagai cincin, lengkap dengan hitung mundur reset.
-  Datanya diambil dari statusline Claude Code, jadi tidak ada request tambahan.
+  Datanya diambil dari statusline Claude Code (fitur resmi), jadi tidak ada request tambahan dan
+  token login Anda tidak disentuh.
 - **Banyak sesi sekaligus**: daftar sesi aktif dan statusnya; klik untuk membuka terminalnya.
 - **Multi-monitor**: seret pil ke kiri/kanan atau ke monitor lain; posisi diingat.
 - **Ringan & sopan**: hanya berjalan selama WSL hidup, sembunyi saat ada video/game fullscreen,
@@ -38,7 +39,7 @@ dengan maskot pixel **ogin** dan sisa kuota Claude Anda, tanpa perlu membuka `/u
 | **Claude Code di dalam WSL**, sudah login | Notifikasi bekerja lewat hook Claude Code |
 | **`python3` di WSL** | Sudah ada di Ubuntu bawaan |
 | **Langganan Claude (Pro/Max)** | Untuk menampilkan **kuota**. Dengan API key, notifikasi tetap jalan tetapi kuota tidak tampil |
-| **Claude Code versi terbaru** | Versi lama belum mengirim data kuota ke statusline (island memakai API cadangan yang lebih jarang diperbarui) |
+| **Claude Code versi terbaru** | Versi lama belum mengirim data kuota ke statusline, jadi kuota tidak tampil |
 
 ## Pasang
 
@@ -81,7 +82,7 @@ tidak berat karena ikut membangunkan WSL):
 
   | Ikon | Fungsi |
   |---|---|
-  | `refresh.svg` | Perbarui kuota sekarang (redup saat server sedang membatasi) |
+  | `refresh.svg` | Muat ulang data kuota terakhir dari Claude Code |
   | `sound-on.svg` / `sound-off.svg` | Nyalakan/matikan suara |
   | `bell.svg` | Tes suara notifikasi |
   | `center.svg` | Ke tengah layar tempat island berada |
@@ -114,6 +115,7 @@ Frame dan palet maskot ada di `icons/ogin-pixel.json`.
   | `soundDone`, `soundAttention` | file di `sounds/` | Path Windows ke suara sendiri |
   | `hideOnFullscreen` | `true` | Sembunyi saat video/game fullscreen |
   | `exitWhenWslStops` | `true` | Keluar saat WSL berhenti |
+  | `usageApiFallback` | `false` | API kuota cadangan (lihat di bawah) |
   | `pollSeconds` | `300` | Jeda minimum API kuota cadangan (min. 300) |
 
 ## Cara kerja
@@ -123,21 +125,29 @@ Claude Code (WSL) --hook-------> island_hook.py ------> %LOCALAPPDATA%\OriginIsl
 Claude Code (WSL) --statusline-> island_statusline.py -> %LOCALAPPDATA%\OriginIsland\usage.json
                                                                    |
 island.ps1 (Windows, PowerShell + WPF) <--- dibaca tiap 0,5 detik --+
-island.ps1 ---> api.anthropic.com/api/oauth/usage   (cadangan saja)
 ```
 
+- Secara default Origin Island **hanya memakai fitur resmi Claude Code** (hook & statusline), tidak
+  membaca token login, dan tidak menghubungi server mana pun.
 - **Kuota** diambil dari data `rate_limits` yang sudah diterima Claude Code dan diteruskan ke
-  statusline. API usage hanya dipakai bila data itu lebih tua dari 10 menit, paling cepat tiap 5 menit;
-  bila kena 429, island menunggu makin lama (5 → 30 menit) dan tetap menampilkan angka terakhir.
-- Token OAuth hanya **dibaca** dari `~/.claude/.credentials.json` untuk API cadangan; tidak pernah
-  disimpan ke disk lain, dikirim ke tempat lain, atau di-refresh oleh island.
+  statusline, jadi angkanya diperbarui setiap Anda memakai Claude Code. Saat Claude Code lama tidak
+  dipakai, angka terakhir tetap tampil beserta jam pembaruannya.
+
+### API kuota cadangan (opsional, mati secara default)
+
+Dengan `"usageApiFallback": true` di `config.json`, island juga memanggil
+`api.anthropic.com/api/oauth/usage` (endpoint yang sama dengan `/usage`) saat data statusline lebih
+tua dari 10 menit, paling cepat tiap 5 menit; bila kena 429, island menunggu makin lama (5 → 30 menit).
+Untuk itu island **membaca token OAuth** dari `~/.claude/.credentials.json` (tidak disimpan ke tempat
+lain dan tidak di-refresh). Endpoint ini **tidak terdokumentasi resmi**, jadi aktifkan dengan risiko
+sendiri.
 
 ## Batasan
 
 - Klik notifikasi memunculkan **jendela** Windows Terminal, belum bisa memilih **tab** yang tepat.
 - Autostart saat terminal dibuka hanya untuk **bash**. Pengguna zsh/fish tetap mendapat island saat
   Claude Code dipakai (lewat hook).
-- Endpoint API usage cadangan tidak terdokumentasi resmi, jadi bisa berubah sewaktu-waktu.
+- Kuota hanya diperbarui saat Claude Code dipakai (kecuali API cadangan dinyalakan).
 - Hook hanya terpasang di distro WSL tempat `install.sh` dijalankan.
 
 ## Pemecahan masalah

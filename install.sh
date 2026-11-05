@@ -43,9 +43,10 @@ cp "$HERE"/icons/*.svg "$HERE"/icons/*.json "$APP_WSL/icons/"   # ikon + maskot 
 python3 - "$APP_WSL/config.json" "$OLD_APP_WSL/config.json" "$CRED_WIN" "$APP_WIN\\events.jsonl" <<'EOF'
 import json, os, sys
 new_path, old_path, cred, events = sys.argv[1:5]
-cfg = {"pollSeconds": 300, "notifySeconds": 8, "sound": True, "hideOnFullscreen": True, "exitWhenWslStops": True}
+cfg = {"pollSeconds": 300, "notifySeconds": 8, "sound": True, "hideOnFullscreen": True, "exitWhenWslStops": True,
+       "usageApiFallback": False}
 keep = ("pollSeconds", "notifySeconds", "sound", "soundVolume", "soundDone", "soundAttention",
-        "hideOnFullscreen", "exitWhenWslStops")
+        "hideOnFullscreen", "exitWhenWslStops", "usageApiFallback")
 for p in (old_path, new_path):          # yang baru menang
     if os.path.exists(p):
         try:
@@ -65,9 +66,8 @@ sh.Run "powershell.exe -NoProfile -ExecutionPolicy Bypass -STA -WindowStyle Hidd
 EOF
 sed -i 's/$/\r/' "$APP_WSL/start-island.vbs"
 
-# Sisa versi lama: autostart Windows (membangunkan WSL saat login) & folder ClaudeIsland.
+# Sisa versi lama: autostart Windows (membangunkan WSL saat login).
 rm -f "$STARTUP_WSL/ClaudeIsland.vbs"
-rm -rf "$OLD_APP_WSL"
 
 echo "==> Memasang hook + statusline Claude Code di ~/.claude/settings.json"
 mkdir -p "$HOOK_DIR"
@@ -76,6 +76,10 @@ chmod +x "$HOOK_DIR/island_launch.sh"
 python3 "$HERE/wsl/settings_hooks.py" install \
   "$HOOK_DIR/island_hook.py" "$APP_WSL/events.jsonl" \
   "$HOOK_DIR/island_statusline.py" "$APP_WSL/usage.json"
+
+# Folder versi lama dihapus SETELAH hook diperbarui; kalau sebelumnya, hook sesi Claude Code
+# yang sedang berjalan bisa membuatnya lagi.
+rm -rf "$OLD_APP_WSL"
 
 echo "==> Menyalakan island otomatis saat terminal WSL dibuka (~/.bashrc)"
 sed -i '/# >>> claude-island >>>/,/# <<< claude-island <<</d; /# >>> origin-island >>>/,/# <<< origin-island <<</d' "$BASHRC"

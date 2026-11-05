@@ -454,9 +454,12 @@ $SoundDone = Resolve-Sound $cfg.soundDone 'claude-selesai.mp3'
 $SoundAttention = Resolve-Sound $cfg.soundAttention 'claude-butuh-izin.mp3'
 $SoundVolume = if ($null -ne $cfg.soundVolume) { [double]$cfg.soundVolume } else { 1.0 }
 
-# Kuota utama datang dari statusline Claude Code (tanpa request tambahan) lewat usage.json.
-# API usage hanya cadangan saat data itu basi, dan dibatasi paling cepat tiap 5 menit.
+# Kuota datang dari statusline Claude Code (fitur resmi, tanpa request tambahan) lewat usage.json.
+# API usage (endpoint tidak resmi + membaca token OAuth) hanya cadangan dan MATI secara default;
+# nyalakan dengan "usageApiFallback": true di config.json. Bila nyala: hanya saat data statusline
+# basi, paling cepat tiap 5 menit.
 $UsagePath = if ($cfg.usagePath) { $cfg.usagePath } else { Join-Path (Split-Path $cfg.eventsPath) 'usage.json' }
+$UseApiFallback = [bool]$cfg.usageApiFallback
 $PollSeconds = [math]::Max(300.0, [double]$cfg.pollSeconds)
 $FreshMinutes = 10
 
@@ -737,7 +740,14 @@ function Add-Footer {
     $btns = New-Object System.Windows.Controls.StackPanel
     $btns.Orientation = 'Horizontal'
     [System.Windows.Controls.DockPanel]::SetDock($btns, 'Right')
-    if ($script:apiBackoff -gt 0) {
+    if (-not $UseApiFallback) {
+        # Tanpa API: baca ulang data kuota terakhir dari statusline Claude Code.
+        [void]$btns.Children.Add((New-IconButton 'refresh' 'Muat ulang kuota dari Claude Code' {
+                    $script:usageFileTime = [datetime]::MinValue; $script:usageAt = $null
+                    Read-UsageFile
+                }))
+    }
+    elseif ($script:apiBackoff -gt 0) {
         [void]$btns.Children.Add((New-IconButton 'refresh' ('Server membatasi cek kuota - coba lagi {0:HH:mm}' -f $script:nextUsage) $null))
     }
     else {
@@ -836,7 +846,7 @@ function Build-Expanded {
         [void]$Expanded.Children.Add($grid)
     }
     elseif (-not $script:usageErr) {
-        $wait = New-Text 'Memuat kuota...' 12 $C.Sub
+        $wait = New-Text $(if ($UseApiFallback) { 'Memuat kuota...' } else { 'Kuota muncul setelah Anda memakai Claude Code' }) 12 $C.Sub
         $wait.Margin = '0,4,0,0'
         [void]$Expanded.Children.Add($wait)
     }
@@ -1166,6 +1176,7 @@ function Usage-IsFresh {
 function Start-UsageFetch {
     if ($script:usageTask) { return }
     $script:nextUsage = [datetime]::Now.AddSeconds($PollSeconds)
+    if (-not $UseApiFallback) { $script:forceApi = $false; return }   # token tidak pernah dibaca
     if (-not $script:forceApi -and (Usage-IsFresh)) { return }
     $script:forceApi = $false
     try { $tok = Get-Token }
