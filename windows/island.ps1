@@ -413,6 +413,7 @@ $script:sessions = @{}         # session_id -> @{ project; state; ts; cwd; distr
 $script:notif = $null          # @{ kind; title; project; body; term; cwd; distro }
 $script:notifUntil = [datetime]::MinValue
 $script:isExpanded = $false
+$script:confirmUninstall = $false
 $script:hover = $false
 $script:leaveAt = [datetime]::MinValue
 $script:mascotMode = ''
@@ -676,7 +677,8 @@ function Add-Separator([double]$top = 12, [double]$bottom = 12) {
 }
 
 # Tombol ikon bulat ala iOS. $onClick = $null -> redup & tidak bisa diklik.
-function New-IconButton($icon, $tip, $onClick, $iconColor = $C.Icon) {
+# -Danger: ikon & latar memerah saat disorot (untuk aksi berbahaya seperti uninstall).
+function New-IconButton($icon, $tip, $onClick, $iconColor = $C.Icon, [switch]$Danger) {
     $b = New-Object System.Windows.Controls.Border
     $b.Width = 30; $b.Height = 30; $b.CornerRadius = 15; $b.Margin = '6,0,0,0'
     $b.Background = Brush $C.Button
@@ -687,8 +689,14 @@ function New-IconButton($icon, $tip, $onClick, $iconColor = $C.Icon) {
     if (-not $onClick) { $b.Opacity = 0.35; return $b }
     $b.Cursor = 'Hand'
     $b.Tag = $onClick
-    $b.Add_MouseEnter({ $this.Background = Brush $C.ButtonHover })
-    $b.Add_MouseLeave({ $this.Background = Brush $C.Button })
+    if ($Danger) {
+        $b.Add_MouseEnter({ $this.Background = Brush '#33FF3B30'; Set-IconColor $this.Child $C.Red })
+        $b.Add_MouseLeave({ $this.Background = Brush $C.Button; Set-IconColor $this.Child $C.Icon })
+    }
+    else {
+        $b.Add_MouseEnter({ $this.Background = Brush $C.ButtonHover })
+        $b.Add_MouseLeave({ $this.Background = Brush $C.Button })
+    }
     # Handled = true: klik tombol tidak dianggap mulai menyeret pil.
     $b.Add_MouseLeftButtonDown({ param($s, $e) $e.Handled = $true; $s.Background = Brush $C.ButtonDown })
     $b.Add_MouseLeftButtonUp({ param($s, $e) $e.Handled = $true; $s.Background = Brush $C.ButtonHover; & $s.Tag })
@@ -733,9 +741,60 @@ function Add-SessionRows {
     }
 }
 
+# Tombol teks berbentuk kapsul (untuk konfirmasi).
+function New-TextButton($label, $bg, $hoverBg, $fg, $onClick) {
+    $b = New-Object System.Windows.Controls.Border
+    $b.CornerRadius = 14; $b.Padding = '14,6,14,7'; $b.Margin = '6,0,0,0'
+    $b.Background = Brush $bg
+    $t = New-Text $label 12 $fg 'SemiBold'
+    $b.Child = $t
+    $b.Cursor = 'Hand'
+    $b.Tag = @{ Click = $onClick; Bg = $bg; Hover = $hoverBg }
+    $b.Add_MouseEnter({ $this.Background = Brush $this.Tag.Hover })
+    $b.Add_MouseLeave({ $this.Background = Brush $this.Tag.Bg })
+    $b.Add_MouseLeftButtonDown({ param($s, $e) $e.Handled = $true })
+    $b.Add_MouseLeftButtonUp({ param($s, $e) $e.Handled = $true; & $s.Tag.Click })
+    $b
+}
+
+# Uninstall lewat tombol: jalankan skrip uninstall di WSL (salinannya ada di ~/.claude/island,
+# jadi tetap bisa walau folder repo sudah dihapus), lalu island menutup dirinya sendiri.
+$CanUninstall = [bool]($cfg.distro -and $cfg.hookDir)
+function Start-Uninstall {
+    try {
+        # C:\Users\x\AppData\Local\OriginIsland -> /mnt/c/Users/x/AppData/Local/OriginIsland
+        $appWsl = '/mnt/' + $AppDir.Substring(0, 1).ToLower() + ($AppDir.Substring(2) -replace '\\', '/')
+        $uninstaller = "$($cfg.hookDir)/island_uninstall.sh"
+        # wsl.exe yang dijalankan tersembunyi gagal (-1) bila tidak punya tempat menulis output,
+        # jadi output-nya dialihkan ke log di %TEMP% (bukan folder aplikasi yang akan dihapus).
+        $uninstallLog = Join-Path $env:TEMP 'origin-island-uninstall.log'
+        # Nama distro tanpa tanda kutip (wsl.exe ikut membaca kutipnya; nama distro tidak berisi spasi).
+        $cmd = '"{0}" /c wsl.exe -d {1} -e bash "{2}" "{3}" > "{4}" 2>&1' -f $env:ComSpec, $cfg.distro, $uninstaller, $appWsl, $uninstallLog
+        Log "uninstall dimulai lewat tombol (log: $uninstallLog)"
+        [void](New-Object -ComObject WScript.Shell).Run($cmd, 0, $false)
+        $win.Close()
+    }
+    catch { Log "uninstall gagal: $_" }
+}
+
 function Add-Footer {
     $foot = New-Object System.Windows.Controls.DockPanel
     $foot.Margin = '0,14,0,0'
+
+    if ($script:confirmUninstall) {
+        # Konfirmasi dulu supaya tidak ter-uninstall karena salah klik.
+        $btns = New-Object System.Windows.Controls.StackPanel
+        $btns.Orientation = 'Horizontal'
+        [System.Windows.Controls.DockPanel]::SetDock($btns, 'Right')
+        [void]$btns.Children.Add((New-TextButton 'Batal' $C.Button $C.ButtonHover $C.Text { $script:confirmUninstall = $false; Refresh-UI }))
+        [void]$btns.Children.Add((New-TextButton 'Hapus' '#D92D20' '#F04438' '#FFFFFF' { Start-Uninstall }))
+        [void]$foot.Children.Add($btns)
+        $q = New-Text 'Hapus Origin Island dari laptop ini? Hook Claude Code ikut dilepas.' 11.5 $C.Text
+        $q.TextWrapping = 'Wrap'; $q.VerticalAlignment = 'Center'
+        [void]$foot.Children.Add($q)
+        [void]$Expanded.Children.Add($foot)
+        return
+    }
 
     $btns = New-Object System.Windows.Controls.StackPanel
     $btns.Orientation = 'Horizontal'
@@ -763,6 +822,9 @@ function Add-Footer {
     }
     [void]$btns.Children.Add((New-IconButton 'bell' 'Tes suara notifikasi' { Play-Sound 'done' -Force }))
     [void]$btns.Children.Add((New-IconButton 'center' 'Ke tengah layar ini (layar tempat island berada)' { Center-OnCurrentMonitor }))
+    if ($CanUninstall) {
+        [void]$btns.Children.Add((New-IconButton 'trash' 'Uninstall Origin Island' { $script:confirmUninstall = $true; Refresh-UI } -Danger))
+    }
     [void]$foot.Children.Add($btns)
 
     if ($script:usageErr) { $ft = New-Text $script:usageErr 10.5 $C.Red; $ft.TextWrapping = 'Wrap' }
@@ -882,7 +944,7 @@ function Get-ExpandedKey {
         $(if ($n) { "$($n.kind)|$($n.title)|$($n.project)|$($n.body)" } else { '-' }),
         (($limits | ForEach-Object { $r = Format-Reset $_.Reset; "$($_.Label)=$([math]::Round($_.Pct))/$($r.Short)" }) -join ','),
         (($script:sessions.Values | Sort-Object { $_.ts } -Descending | Select-Object -First 4 | ForEach-Object { "$($_.project):$($_.state)" }) -join ','),
-        $script:sound, $script:apiBackoff, $script:usageErr, $script:usageNote, $script:usageSource,
+        $script:sound, $script:apiBackoff, $script:usageErr, $script:usageNote, $script:usageSource, $script:confirmUninstall,
         $(if ($script:usageAt) { $script:usageAt.ToString('dd HH:mm') })
     )
     $parts -join '#'
@@ -932,6 +994,7 @@ function Expand {
 function Collapse {
     $script:isExpanded = $false
     $script:targetH = 0
+    if ($script:confirmUninstall) { $script:confirmUninstall = $false; $script:expandedDirty = $true }   # batal otomatis
     $Expanded.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $null)
     $Expanded.Visibility = 'Collapsed'   # isi tetap disimpan (cache) untuk hover berikutnya
     $CloseBtn.Visibility = 'Collapsed'

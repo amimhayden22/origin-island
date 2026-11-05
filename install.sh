@@ -40,9 +40,9 @@ cp "$HERE"/icons/*.svg "$HERE"/icons/*.json "$APP_WSL/icons/"   # ikon + maskot 
 
 # config.json: path selalu ditulis ulang; preferensi (suara, durasi notifikasi, dll.) dipertahankan,
 # termasuk dari folder versi lama.
-python3 - "$APP_WSL/config.json" "$OLD_APP_WSL/config.json" "$CRED_WIN" "$APP_WIN\\events.jsonl" <<'EOF'
+python3 - "$APP_WSL/config.json" "$OLD_APP_WSL/config.json" "$CRED_WIN" "$APP_WIN\\events.jsonl" "$WSL_DISTRO_NAME" "$HOOK_DIR" <<'EOF'
 import json, os, sys
-new_path, old_path, cred, events = sys.argv[1:5]
+new_path, old_path, cred, events, distro, hook_dir = sys.argv[1:7]
 cfg = {"pollSeconds": 300, "notifySeconds": 8, "sound": True, "hideOnFullscreen": True, "exitWhenWslStops": True,
        "usageApiFallback": False}
 keep = ("pollSeconds", "notifySeconds", "sound", "soundVolume", "soundDone", "soundAttention",
@@ -55,7 +55,7 @@ for p in (old_path, new_path):          # yang baru menang
         except (OSError, ValueError):
             pass
 cfg["pollSeconds"] = max(300, int(cfg.get("pollSeconds", 300)))
-cfg.update(credentialsPath=cred, eventsPath=events)
+cfg.update(credentialsPath=cred, eventsPath=events, distro=distro, hookDir=hook_dir)   # dipakai tombol Uninstall
 with open(new_path, "w", encoding="utf-8") as f:
     json.dump(cfg, f, indent=2)
 EOF
@@ -71,8 +71,9 @@ rm -f "$STARTUP_WSL/ClaudeIsland.vbs"
 
 echo "==> Memasang hook + statusline Claude Code di ~/.claude/settings.json"
 mkdir -p "$HOOK_DIR"
-cp "$HERE/wsl/island_hook.py" "$HERE/wsl/island_statusline.py" "$HERE/wsl/island_launch.sh" "$HOOK_DIR/"
-chmod +x "$HOOK_DIR/island_launch.sh"
+cp "$HERE/wsl/island_hook.py" "$HERE/wsl/island_statusline.py" "$HERE/wsl/island_launch.sh" \
+   "$HERE/wsl/island_uninstall.sh" "$HERE/wsl/settings_hooks.py" "$HOOK_DIR/"   # uninstall: untuk tombol di island
+chmod +x "$HOOK_DIR/island_launch.sh" "$HOOK_DIR/island_uninstall.sh"
 python3 "$HERE/wsl/settings_hooks.py" install \
   "$HOOK_DIR/island_hook.py" "$APP_WSL/events.jsonl" \
   "$HOOK_DIR/island_statusline.py" "$APP_WSL/usage.json"

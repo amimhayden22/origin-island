@@ -59,11 +59,12 @@ monitor utama.
 | Lokasi | Perubahan |
 |---|---|
 | `%LOCALAPPDATA%\OriginIsland\` | Aplikasi Windows, ikon, suara, `config.json`, log |
-| `~/.claude/island/` | Skrip hook, statusline, dan launcher |
+| `~/.claude/island/` | Skrip hook, statusline, launcher, dan uninstall |
 | `~/.claude/settings.json` | Menambah **hook** dan **`statusLine`** (cadangan: `settings.json.bak-island`). Statusline milik Anda yang sudah ada **tidak** ditimpa |
 | `~/.bashrc` | Satu blok `# >>> origin-island >>>` untuk menyalakan island saat terminal dibuka |
 
-Hapus semuanya kapan saja dengan `./uninstall.sh`.
+Hapus semuanya kapan saja lewat tombol **Uninstall** (ikon tempat sampah) di panel island, atau
+`./uninstall.sh` dari terminal WSL. Keduanya menjalankan skrip yang sama.
 
 ### Kapan island berjalan
 
@@ -86,6 +87,7 @@ tidak berat karena ikut membangunkan WSL):
   | `sound-on.svg` / `sound-off.svg` | Nyalakan/matikan suara |
   | `bell.svg` | Tes suara notifikasi |
   | `center.svg` | Ke tengah layar tempat island berada |
+  | `trash.svg` | Uninstall Origin Island (dengan konfirmasi) |
   | `exit.svg` (kanan atas) | Tutup island |
 
 ### Status maskot
