@@ -1,0 +1,17 @@
+# Sumber mentah maskot (isinya sudah dipakai lewat icons/ogin-pixel.json)
+icons/*.zip
+
+# Metadata unduhan Windows
+*:Zone.Identifier
+*Zone.Identifier
+
+# Catatan perencanaan pribadi
+planning.md
+
+# Python / editor / OS
+__pycache__/
+*.pyc
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

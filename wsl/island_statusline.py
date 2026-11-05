@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+"""Statusline Claude Code -> Origin Island.
+
+Claude Code mengirim data `rate_limits` (dari header respons request-nya sendiri) ke
+statusline. Skrip ini menyimpannya ke usage.json milik island, jadi island tidak perlu
+memanggil API usage terus-menerus (yang bisa kena rate limit 429).
+
+Juga mencetak satu baris statusline: "<model> · 5j 31% · 7h 32%".
+"""
+import datetime as dt
+import json
+import os
+import sys
+import time
+
+CACHE = os.path.expanduser("~/.claude/island/last_usage.json")
+WINDOWS = ["five_hour", "seven_day", "seven_day_opus", "seven_day_sonnet"]
+
+
+def to_iso(value):
+    """resets_at bisa berupa epoch (detik/milidetik) atau string ISO."""
+    if isinstance(value, (int, float)):
+        if value > 1e12:
+            value /= 1000
+        return dt.datetime.fromtimestamp(value, dt.timezone.utc).isoformat()
+    return value
+
+
+def extract(data):
+    limits = data.get("rate_limits") or {}
+    usage = {}
+    for key in WINDOWS:
+        w = limits.get(key)
+        if not isinstance(w, dict):
+            continue
+        pct = w.get("used_percentage", w.get("utilization"))
+        if pct is None:
+            continue
+        usage[key] = {"utilization": float(pct), "resets_at": to_iso(w.get("resets_at"))}
+    return usage
+
+
+def save(usage, out):
+    """Tulis ke disk Windows hanya bila angkanya berubah (statusline dipanggil sering)."""
+    try:
+        with open(CACHE) as f:
+            last = json.load(f)
+    except (OSError, ValueError):
+        last = {}
+    # Tetap tulis ulang tiap 5 menit supaya island tahu datanya masih segar.
+    if last.get("usage") == usage and time.time() - last.get("ts", 0) < 300:
+        return
+    record = dict(usage, source="statusline", ts=time.time())
+    tmp = out + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(record, f)
+    os.replace(tmp, out)
+    os.makedirs(os.path.dirname(CACHE), exist_ok=True)
+    with open(CACHE, "w") as f:
+        json.dump({"usage": usage, "ts": time.time()}, f)
+
+
+def main():
+    out = sys.argv[sys.argv.index("--out") + 1]
+    data = json.load(sys.stdin)
+    usage = extract(data)
+    if usage:
+        try:
+            save(usage, out)
+        except OSError:
+            pass
+
+    parts = []
+    model = (data.get("model") or {}).get("display_name")
+    if model:
+        parts.append(model)
+    if "five_hour" in usage:
+        parts.append("5j {:.0f}%".format(usage["five_hour"]["utilization"]))
+    if "seven_day" in usage:
+        parts.append("7h {:.0f}%".format(usage["seven_day"]["utilization"]))
+    print(" · ".join(parts))
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception:
+        print("")

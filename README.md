@@ -1,0 +1,159 @@
+# Origin Island
+
+**Notifikasi ala Dynamic Island untuk [Claude Code](https://claude.com/claude-code) di Windows + WSL.**
+
+Pil kecil di tepi atas layar yang memberi tahu saat Claude selesai, butuh izin, atau gagal, lengkap
+dengan maskot pixel **ogin** dan sisa kuota Claude Anda, tanpa perlu membuka `/usage`.
+
+![Claude selesai](docs/done.png)
+
+## Fitur
+
+- **Notifikasi + suara** saat Claude selesai, butuh izin/perhatian, atau gagal. Klik notifikasinya
+  untuk langsung ke terminal tempat sesi itu berjalan (Windows Terminal atau VS Code).
+- **Maskot ogin** (roket pixel 16×16) dengan animasi per status: `idle`, `thinking`, `working`,
+  `waiting`, `done`, `error`.
+- **Kuota langganan** sesi 5 jam & mingguan sebagai cincin, lengkap dengan hitung mundur reset.
+  Datanya diambil dari statusline Claude Code, jadi tidak ada request tambahan.
+- **Banyak sesi sekaligus**: daftar sesi aktif dan statusnya; klik untuk membuka terminalnya.
+- **Multi-monitor**: seret pil ke kiri/kanan atau ke monitor lain; posisi diingat.
+- **Ringan & sopan**: hanya berjalan selama WSL hidup, sembunyi saat ada video/game fullscreen,
+  tidak mencuri fokus, tidak muncul di taskbar/Alt-Tab.
+
+## Tampilan
+
+| Kondisi | Tampilan |
+|---|---|
+| **Siap** — maskot + cincin kuota (luar: 5 jam, dalam: mingguan) | ![Siap](docs/idle.png) |
+| **Bekerja** — maskot bekerja, nama proyek tampil | ![Bekerja](docs/working.png) |
+| **Hover** — detail kuota, sesi aktif, tombol | ![Hover](docs/hover.png) |
+| **Butuh izin** — notifikasi + suara | ![Butuh izin](docs/attention.png) |
+| **Selesai** — cuplikan balasan terakhir Claude + suara | ![Selesai](docs/done.png) |
+
+## Persyaratan
+
+| | |
+|---|---|
+| **Windows 10/11 + WSL2** | PowerShell & WPF sudah bawaan Windows, tidak perlu memasang apa pun |
+| **Claude Code di dalam WSL**, sudah login | Notifikasi bekerja lewat hook Claude Code |
+| **`python3` di WSL** | Sudah ada di Ubuntu bawaan |
+| **Langganan Claude (Pro/Max)** | Untuk menampilkan **kuota**. Dengan API key, notifikasi tetap jalan tetapi kuota tidak tampil |
+| **Claude Code versi terbaru** | Versi lama belum mengirim data kuota ke statusline (island memakai API cadangan yang lebih jarang diperbarui) |
+
+## Pasang
+
+Dari terminal **WSL** (bukan PowerShell):
+
+```bash
+git clone https://github.com/amimhayden22/origin-island.git
+cd origin-island
+./install.sh
+```
+
+Setelah itu buka ulang sesi Claude Code yang sedang berjalan. Pil langsung muncul di tengah atas
+monitor utama.
+
+### Apa saja yang diubah installer
+
+| Lokasi | Perubahan |
+|---|---|
+| `%LOCALAPPDATA%\OriginIsland\` | Aplikasi Windows, ikon, suara, `config.json`, log |
+| `~/.claude/island/` | Skrip hook, statusline, dan launcher |
+| `~/.claude/settings.json` | Menambah **hook** dan **`statusLine`** (cadangan: `settings.json.bak-island`). Statusline milik Anda yang sudah ada **tidak** ditimpa |
+| `~/.bashrc` | Satu blok `# >>> origin-island >>>` untuk menyalakan island saat terminal dibuka |
+
+Hapus semuanya kapan saja dengan `./uninstall.sh`.
+
+### Kapan island berjalan
+
+Island **hanya berjalan selama WSL hidup**, tidak ikut menyala saat Windows login (supaya startup
+tidak berat karena ikut membangunkan WSL):
+- menyala saat terminal WSL dibuka atau saat Claude Code dipakai (hook `SessionStart` /
+  `UserPromptSubmit`), termasuk setelah ditutup dengan tombol X;
+- keluar sendiri ±30 detik setelah WSL berhenti.
+
+## Pemakaian
+
+- **Arahkan kursor** ke pil untuk melihat detail kuota dan sesi aktif.
+- **Klik** pil/notifikasi untuk membuka terminal sesi terkait. Baris sesi di panel juga bisa diklik.
+- **Seret ke kiri/kanan** untuk memindahkan pil, termasuk ke monitor lain.
+- Tombol di panel hover:
+
+  | Ikon | Fungsi |
+  |---|---|
+  | `refresh.svg` | Perbarui kuota sekarang (redup saat server sedang membatasi) |
+  | `sound-on.svg` / `sound-off.svg` | Nyalakan/matikan suara |
+  | `bell.svg` | Tes suara notifikasi |
+  | `center.svg` | Ke tengah layar tempat island berada |
+  | `exit.svg` (kanan atas) | Tutup island |
+
+### Status maskot
+
+| Status | Kapan |
+|---|---|
+| `idle` | Tidak ada sesi aktif |
+| `thinking` | Claude berpikir (setelah prompt, di antara langkah) |
+| `working` | Alat (tool) sedang berjalan |
+| `waiting` | Butuh izin atau perhatian |
+| `done` | Selesai |
+| `error` | Alat gagal (sekilas), atau Claude gagal (notifikasi merah) |
+
+Frame dan palet maskot ada di `icons/ogin-pixel.json`.
+
+### Kustomisasi
+
+- **Suara**: ganti file di `sounds/` (MP3 atau WAV) lalu jalankan `./install.sh` lagi.
+- **Ikon**: ganti SVG di `icons/` (isi maupun garis).
+- **Pengaturan** di `%LOCALAPPDATA%\OriginIsland\config.json`:
+
+  | Kunci | Default | Arti |
+  |---|---|---|
+  | `notifySeconds` | `8` | Lama notifikasi tampil |
+  | `sound` | `true` | Suara notifikasi |
+  | `soundVolume` | `1.0` | Volume (0–1) |
+  | `soundDone`, `soundAttention` | file di `sounds/` | Path Windows ke suara sendiri |
+  | `hideOnFullscreen` | `true` | Sembunyi saat video/game fullscreen |
+  | `exitWhenWslStops` | `true` | Keluar saat WSL berhenti |
+  | `pollSeconds` | `300` | Jeda minimum API kuota cadangan (min. 300) |
+
+## Cara kerja
+
+```
+Claude Code (WSL) --hook-------> island_hook.py ------> %LOCALAPPDATA%\OriginIsland\events.jsonl
+Claude Code (WSL) --statusline-> island_statusline.py -> %LOCALAPPDATA%\OriginIsland\usage.json
+                                                                   |
+island.ps1 (Windows, PowerShell + WPF) <--- dibaca tiap 0,5 detik --+
+island.ps1 ---> api.anthropic.com/api/oauth/usage   (cadangan saja)
+```
+
+- **Kuota** diambil dari data `rate_limits` yang sudah diterima Claude Code dan diteruskan ke
+  statusline. API usage hanya dipakai bila data itu lebih tua dari 10 menit, paling cepat tiap 5 menit;
+  bila kena 429, island menunggu makin lama (5 → 30 menit) dan tetap menampilkan angka terakhir.
+- Token OAuth hanya **dibaca** dari `~/.claude/.credentials.json` untuk API cadangan; tidak pernah
+  disimpan ke disk lain, dikirim ke tempat lain, atau di-refresh oleh island.
+
+## Batasan
+
+- Klik notifikasi memunculkan **jendela** Windows Terminal, belum bisa memilih **tab** yang tepat.
+- Autostart saat terminal dibuka hanya untuk **bash**. Pengguna zsh/fish tetap mendapat island saat
+  Claude Code dipakai (lewat hook).
+- Endpoint API usage cadangan tidak terdokumentasi resmi, jadi bisa berubah sewaktu-waktu.
+- Hook hanya terpasang di distro WSL tempat `install.sh` dijalankan.
+
+## Pemecahan masalah
+
+- **Pil tidak muncul**: buka terminal WSL baru atau kirim prompt ke Claude Code. Cek
+  `%LOCALAPPDATA%\OriginIsland\island.log`.
+- **Antivirus** kadang memblokir skrip `.vbs`/PowerShell tersembunyi. Izinkan
+  `%LOCALAPPDATA%\OriginIsland\start-island.vbs`.
+- **Kuota tidak tampil**: pastikan login dengan langganan Claude (bukan API key) dan kirim satu prompt
+  supaya statusline mengirim data.
+
+## Lisensi & kredit
+
+- Kode: [MIT](LICENSE).
+- Maskot **ogin** dan ikon: bagian dari proyek ini.
+- Suara notifikasi: dari sumber suara bebas royalti.
+
+Origin Island adalah proyek independen dan **tidak berafiliasi** dengan Anthropic atau Apple.
+*Claude* dan *Claude Code* adalah merek dagang Anthropic; *Dynamic Island* adalah merek dagang Apple.
