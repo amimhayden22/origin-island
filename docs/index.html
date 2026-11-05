@@ -41,9 +41,42 @@
     @media (min-width: 52rem) { .install { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     .req { margin-top: var(--space-lg); }
     .footer-note { margin-top: var(--space-sm); color: var(--text-muted); font-size: var(--fs-xs); max-width: 70ch; }
+
+    /* Langit luar angkasa ala latar bintang Origin (thumbnail & video): titik bintang dengan kecerahan
+       acak, beberapa bintang berkilau berujung empat (sebagian Amaranth), dan bulan sabit. */
+    :root { --star: var(--orbit); --star-alpha: 0.55; --moon: var(--content-steel); }
+    @media screen and (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) { --star: var(--content-mist); --star-alpha: 0.9; --moon: var(--content-mist); }
+    }
+    @media screen { [data-theme="dark"] { --star: var(--content-mist); --star-alpha: 0.9; --moon: var(--content-mist); } }
+    .sky { position: fixed; inset: 0; z-index: -1; pointer-events: none; color: var(--star); opacity: var(--star-alpha); }
+    .sky svg { display: block; width: 100%; height: 100%; }
+    .sky .spark--accent { color: var(--accent); }
+    .sky .tw { animation: twinkle 3.4s ease-in-out infinite alternate; }
+    @keyframes twinkle { from { opacity: 0.2; } to { opacity: 1; } }
+    /* Bagian berlatar dibuat sedikit tembus supaya bintang tetap samar terlihat */
+    .section--muted { background: color-mix(in srgb, var(--bg-muted) 72%, transparent); }
+    .site-footer { background: color-mix(in srgb, var(--bg-page) 80%, transparent); }
+    /* Bulan sabit: satu-satunya ornamen di bagian Ogin, di ruang kosong sebelah judul */
+    .has-moon { position: relative; overflow: clip; }
+    .moon { position: absolute; top: var(--space-xl); right: max(var(--space-md), 7%); width: 7.5rem; height: 7.5rem; color: var(--moon); filter: drop-shadow(0 0 1.25rem color-mix(in srgb, var(--moon) 45%, transparent)); animation: origin-float 3.2s var(--ease-orbit) infinite alternate; }
+    @media (max-width: 52rem) { .moon { display: none; } }
+    @media (prefers-reduced-motion: reduce) { .sky .tw, .moon { animation: none; } }
+    @media print { .sky, .moon { display: none; } }
+
+    /* Tombol GitHub: logo + jumlah star */
+    .gh-btn { gap: 0.45rem; }
+    .gh-btn__stars { display: inline-flex; align-items: center; gap: 0.25rem; padding-left: 0.5rem; border-left: 1px solid var(--border-subtle); font-variant-numeric: tabular-nums; }
+    .gh-btn__stars .icon { width: 1rem; height: 1rem; }
+    .gh-btn__stars[hidden] { display: none; }
   </style>
 </head>
 <body>
+<!-- Logo GitHub (Simple Icons, CC0); design system belum menyediakannya -->
+<svg width="0" height="0" style="position: absolute" aria-hidden="true">
+  <symbol id="b-github" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></symbol>
+</svg>
+<div class="sky" aria-hidden="true"></div>
 <a class="skip-link" href="#isi">Langsung ke isi</a>
 
 <header class="site-header">
@@ -70,7 +103,10 @@
         <button type="button" data-theme-choice="system" aria-label="Ikuti sistem" aria-pressed="true"><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-monitor"/></svg></button>
         <button type="button" data-theme-choice="dark" aria-label="Gelap" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-moon"/></svg></button>
       </div>
-      <a class="btn btn--secondary btn--sm" href="https://github.com/amimhayden22/origin-island"><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-code"/></svg>GitHub</a>
+      <a class="btn btn--secondary btn--sm gh-btn" href="https://github.com/amimhayden22/origin-island" aria-label="Repositori GitHub">
+        <svg class="icon" aria-hidden="true"><use href="#b-github"/></svg>
+        <span class="gh-btn__stars" hidden><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-star"/></svg><span data-gh-stars></span></span>
+      </a>
       <button class="btn btn--ghost btn--icon btn--sm menu-toggle" type="button" data-menu-toggle aria-controls="menu" aria-expanded="false" aria-label="Buka menu"><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-menu"/></svg></button>
     </div>
   </div>
@@ -143,7 +179,11 @@
   </section>
 
   <!-- Status maskot -->
-  <section class="section section--muted" id="ogin" aria-labelledby="h-ogin">
+  <section class="section section--muted has-moon" id="ogin" aria-labelledby="h-ogin">
+    <svg class="moon" viewBox="0 0 200 200" aria-hidden="true">
+      <defs><mask id="sabit"><rect width="200" height="200" fill="white"/><circle cx="74" cy="85" r="50" fill="black"/></mask></defs>
+      <circle cx="100" cy="100" r="58" fill="currentColor" mask="url(#sabit)"/>
+    </svg>
     <div class="container">
       <header class="section-head">
         <span class="eyebrow">Maskot</span>
@@ -270,5 +310,51 @@ cd origin-island
     <p class="footer-note">Origin Island adalah proyek independen dan tidak berafiliasi dengan Anthropic atau Apple. Claude dan Claude Code adalah merek dagang Anthropic; Dynamic Island adalah merek dagang Apple.</p>
   </div>
 </footer>
+
+<script>
+/* Langit bintang: posisi acak tapi tetap sama setiap kunjungan (seed tetap), gaya sama dengan
+   latar bintang thumbnail Origin. Warna ikut tema lewat currentColor. */
+(function () {
+  var sky = document.querySelector(".sky"); if (!sky) return;
+  var W = 1600, H = 1000, seed = 7;
+  function r() { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }
+  var out = "", i;
+  for (i = 0; i < 280; i++) {
+    var x = r() * W, y = r() * H, big = r() > 0.94;
+    var rad = big ? 1.6 + r() * 1.4 : 0.6 + r() * 1.1, a = big ? 0.55 + r() * 0.3 : 0.18 + r() * 0.42;
+    var tw = i % 11 === 0 ? ' class="tw" style="animation-delay:-' + (r() * 3.4).toFixed(2) + 's"' : "";
+    out += '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + rad.toFixed(2) + '" opacity="' + a.toFixed(2) + '"' + tw + "/>";
+  }
+  for (i = 0; i < 7; i++) {   /* bintang berkilau berujung empat */
+    var sx = r() * W, sy = r() * H, s = 9 + r() * 8;
+    out += '<path class="tw' + (i % 3 === 0 ? " spark--accent" : "") + '" style="animation-delay:-' + (r() * 3.4).toFixed(2) + 's" d="M' + sx.toFixed(1) + " " + (sy - s).toFixed(1) +
+      "Q" + sx.toFixed(1) + " " + sy.toFixed(1) + " " + (sx + s).toFixed(1) + " " + sy.toFixed(1) +
+      "Q" + sx.toFixed(1) + " " + sy.toFixed(1) + " " + sx.toFixed(1) + " " + (sy + s).toFixed(1) +
+      "Q" + sx.toFixed(1) + " " + sy.toFixed(1) + " " + (sx - s).toFixed(1) + " " + sy.toFixed(1) +
+      "Q" + sx.toFixed(1) + " " + sy.toFixed(1) + " " + sx.toFixed(1) + " " + (sy - s).toFixed(1) + 'Z" fill="currentColor"/>';
+  }
+  sky.innerHTML = '<svg viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="xMidYMid slice" fill="currentColor">' + out + "</svg>";
+})();
+
+/* Jumlah star GitHub (API publik, disimpan sementara di sesi supaya tidak meminta berulang). */
+(function () {
+  var el = document.querySelector("[data-gh-stars]"); if (!el) return;
+  function show(n) {
+    n = Number(n);
+    el.textContent = n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "").replace(".", ",") + "rb" : String(n);
+    el.parentNode.hidden = false;
+    el.closest("a").setAttribute("aria-label", "Repositori GitHub, " + n + " bintang");
+  }
+  try { var c = sessionStorage.getItem("gh-stars"); if (c !== null) { show(c); return; } } catch (e) {}
+  fetch("https://api.github.com/repos/amimhayden22/origin-island")
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) {
+      if (!d || typeof d.stargazers_count !== "number") return;
+      show(d.stargazers_count);
+      try { sessionStorage.setItem("gh-stars", d.stargazers_count); } catch (e) {}
+    })
+    .catch(function () {});
+})();
+</script>
 </body>
 </html>
