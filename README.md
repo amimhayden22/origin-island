@@ -5,6 +5,8 @@
 Pil kecil di tepi atas layar yang memberi tahu saat Claude selesai, butuh izin, atau gagal, lengkap
 dengan maskot pixel **ogin** dan sisa kuota Claude Anda, tanpa perlu membuka `/usage`.
 
+Dibuat oleh **Gus Khamim** ([@amimhayden22](https://github.com/amimhayden22)).
+
 ![Claude selesai](docs/done.png)
 
 ## Fitur
@@ -25,7 +27,7 @@ dengan maskot pixel **ogin** dan sisa kuota Claude Anda, tanpa perlu membuka `/u
 
 | Kondisi | Tampilan |
 |---|---|
-| **Siap** — maskot + cincin kuota (luar: 5 jam, dalam: mingguan) | ![Siap](docs/idle.png) |
+| **Siaga** — maskot + cincin kuota (luar: 5 jam, dalam: mingguan) | ![Siaga](docs/idle.png) |
 | **Bekerja** — maskot bekerja, nama proyek tampil | ![Bekerja](docs/working.png) |
 | **Hover** — detail kuota, sesi aktif, tombol | ![Hover](docs/hover.png) |
 | **Butuh izin** — notifikasi + suara | ![Butuh izin](docs/attention.png) |
@@ -188,8 +190,10 @@ sendiri.
 
 ## Lisensi & kredit
 
+- Dibuat oleh **Gus Khamim** ([@amimhayden22](https://github.com/amimhayden22)). Masukan dan laporan
+  masalah: buka [issue](https://github.com/amimhayden22/origin-island/issues).
 - Kode: [MIT](LICENSE).
-- Maskot **ogin** dan ikon: bagian dari proyek ini.
+- Maskot **ogin** dan ikon: karya Gus Khamim untuk proyek ini.
 - Suara notifikasi: dari sumber suara bebas royalti.
 
 Origin Island adalah proyek independen dan **tidak berafiliasi** dengan Anthropic atau Apple.

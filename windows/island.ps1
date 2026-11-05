@@ -320,7 +320,7 @@ function Load-Ogin {
             $img.Freeze()
             $img
         }
-        $Ogin[[string]$st.Name] = @{ Frames = @($frames); Ms = @($st.Value.ms | ForEach-Object { [int]$_ }) }
+        $Ogin[[string]$st.Name] = @{ Frames = @($frames); Ms = @($st.Value.ms | ForEach-Object { [int]$_ }); Name = [string]$st.Value.name }
     }
 }
 try { Load-Ogin } catch { Log "maskot ogin gagal dimuat: $_" }
@@ -1052,7 +1052,10 @@ function Update-Compact {
     elseif ($work.Count -gt 1) { $mode = $workMode; $text = "$($work.Count) sesi bekerja" }
     elseif ($work.Count -eq 1) { $mode = $workMode; $text = "$(if ($workMode -eq 'working') { 'Bekerja' } else { 'Berpikir' })  ·  $($work[0].project)" }
     elseif ($n -and $n.kind -eq 'done') { $mode = 'done'; $text = "Selesai  ·  $($n.project)" }
-    else { $mode = 'idle'; $text = 'Claude' }
+    else {
+        # Teks idle = nama status 'idle' di ogin-pixel.json ("Siaga").
+        $mode = 'idle'; $text = if ($Ogin['idle'] -and $Ogin['idle'].Name) { $Ogin['idle'].Name } else { 'Siaga' }
+    }
 
     Set-MascotMode $mode
     Update-Trailing (Get-Limits)
