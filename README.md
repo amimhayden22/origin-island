@@ -43,7 +43,27 @@ dengan maskot pixel **ogin** dan sisa kuota Claude Anda, tanpa perlu membuka `/u
 
 ## Pasang
 
-Dari terminal **WSL** (bukan PowerShell):
+### Cara 1: minta Claude Code yang memasang (paling mudah)
+
+1. Buka terminal **WSL**, lalu jalankan `claude`.
+2. Kirim pesan ini ke Claude Code:
+
+   > Tolong install https://github.com/amimhayden22/origin-island — clone repo-nya lalu jalankan
+   > `./install.sh`, baca README-nya dulu.
+
+3. Kalau Claude Code meminta izin (installer mengubah `~/.claude/settings.json` dan `~/.bashrc`),
+   setujui. Kalau Claude Code menolak menjalankannya, jalankan sendiri dari prompt Claude Code:
+
+   ```
+   ! cd origin-island && ./install.sh
+   ```
+
+4. Kirim satu prompt apa saja. Pil muncul di tengah atas layar, dan kuota tampil setelah prompt
+   pertama (datanya dikirim lewat statusline saat Claude Code dipakai).
+
+Tidak perlu membuat folder sendiri; `git clone` sudah membuat folder `origin-island`.
+
+### Cara 2: manual dari terminal WSL
 
 ```bash
 git clone https://github.com/amimhayden22/origin-island.git
@@ -51,8 +71,12 @@ cd origin-island
 ./install.sh
 ```
 
-Setelah itu buka ulang sesi Claude Code yang sedang berjalan. Pil langsung muncul di tengah atas
-monitor utama.
+Setelah itu kirim satu prompt ke Claude Code. Kalau notifikasi belum muncul, buka ulang sesi
+Claude Code yang sedang berjalan.
+
+> **Perhatikan:** kuota hanya tampil bila login dengan langganan **Pro/Max** dan Anda **belum** punya
+> statusline sendiri (statusline yang sudah ada tidak ditimpa). Pengguna **zsh** tidak mendapat
+> autostart saat terminal dibuka, tetapi pil tetap menyala begitu Claude Code dipakai.
 
 ### Apa saja yang diubah installer
 
@@ -156,6 +180,7 @@ sendiri.
 
 - **Pil tidak muncul**: buka terminal WSL baru atau kirim prompt ke Claude Code. Cek
   `%LOCALAPPDATA%\OriginIsland\island.log`.
+- **Melapor masalah**: sertakan isi `island.log` di atas dan output `./install.sh`.
 - **Antivirus** kadang memblokir skrip `.vbs`/PowerShell tersembunyi. Izinkan
   `%LOCALAPPDATA%\OriginIsland\start-island.vbs`.
 - **Kuota tidak tampil**: pastikan login dengan langganan Claude (bukan API key) dan kirim satu prompt
