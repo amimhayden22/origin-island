@@ -1320,16 +1320,17 @@ function Tick {
     if ($script:notif -and $now -ge $script:notifUntil -and -not $script:hover) { Dismiss-Notif }
     elseif ($script:isExpanded -and -not $script:notif -and -not $script:hover -and ($now - $script:leaveAt).TotalMilliseconds -gt 350) { Collapse }
 
+    # Sembunyikan saat video/game fullscreen (kecuali ada notifikasi). Dicek tiap detak (0,5 detik)
+    # dan harus terdeteksi 2x berturut-turut (±1 detik) supaya jendela sesaat tidak membuatnya
+    # berkedip; muncul lagi begitu fullscreen selesai. Cukup beberapa panggilan Win32, jadi ringan.
+    $hwnd = Hwnd
+    $fs = [bool]$cfg.hideOnFullscreen -and -not $script:notif -and [IslandNative]::ForegroundIsFullscreen($hwnd)
+    $script:fullscreenHits = if ($fs) { $script:fullscreenHits + 1 } else { 0 }
+    Set-Hidden ($script:fullscreenHits -ge 2)
+
     if (($now - $script:lastHousekeep).TotalSeconds -ge 3) {
         $script:lastHousekeep = $now
-        $hwnd = Hwnd
         [IslandNative]::Top($hwnd)
-
-        # Sembunyikan saat video/game fullscreen (kecuali ada notifikasi). Harus terdeteksi
-        # 2x berturut-turut (±6 detik) supaya jendela yang muncul sesaat tidak membuatnya berkedip.
-        $fs = [bool]$cfg.hideOnFullscreen -and -not $script:notif -and [IslandNative]::ForegroundIsFullscreen($hwnd)
-        $script:fullscreenHits = if ($fs) { $script:fullscreenHits + 1 } else { 0 }
-        Set-Hidden ($script:fullscreenHits -ge 2)
 
         # Buang sesi yang sudah lama tidak ada kabar (mis. terminal ditutup paksa).
         $removed = $false
