@@ -464,6 +464,10 @@ $script:tokenExp = 0
 $script:forceToken = $false
 $script:lastHousekeep = [datetime]::MinValue
 $script:lastInterruptCheck = [datetime]::MinValue
+$script:limitSig = ''
+$script:lastActivity = $null
+$script:refreshMsg = $null      # teks sesaat setelah tombol muat ulang diklik
+$script:refreshMsgUntil = [datetime]::MinValue
 $script:rebuildAfterDrag = $false
 $script:lastWslCheck = [datetime]::MinValue
 $script:hiddenForFullscreen = $false
@@ -479,6 +483,7 @@ function Resolve-Sound($configured, $bundled) {
 $SoundDone = Resolve-Sound $cfg.soundDone 'claude-selesai.mp3'
 $SoundAttention = Resolve-Sound $cfg.soundAttention 'claude-butuh-izin.mp3'
 $SoundError = Resolve-Sound $cfg.soundError 'claude-gagal.mp3'
+$StaleUsageMinutes = 10   # statusline menulis ulang minimal tiap 5 menit selama sesi aktif
 $script:SoundVolume = if ($null -ne $cfg.soundVolume) { [math]::Min(1.0, [math]::Max(0.0, [double]$cfg.soundVolume)) } else { 1.0 }
 $script:savedVolume = $script:SoundVolume
 
@@ -724,7 +729,10 @@ function Get-Limits {
     foreach ($k in $labels.Keys) {
         $v = $u.$k
         if ($v -and $null -ne $v.utilization) {
-            [void]$list.Add([pscustomobject]@{ Label = $labels[$k]; Pct = [double]$v.utilization; Reset = $v.resets_at })
+            # Waktu reset sudah lewat: kuotanya kembali 0, walau belum ada request baru.
+            $resetAt = To-Local $v.resets_at
+            $pct = if ($resetAt -and $resetAt -le [datetime]::Now) { 0.0 } else { [double]$v.utilization }
+            [void]$list.Add([pscustomobject]@{ Label = $labels[$k]; Pct = $pct; Reset = $v.resets_at })
         }
     }
     $x = $u.extra_usage
@@ -991,9 +999,13 @@ function Add-Footer {
     [System.Windows.Controls.DockPanel]::SetDock($btns, 'Right')
     if (-not $UseApiFallback) {
         # Tanpa API: baca ulang data kuota terakhir dari statusline Claude Code.
-        [void]$btns.Children.Add((New-IconButton 'refresh' 'Muat ulang kuota dari Claude Code' {
-                    $script:usageFileTime = [datetime]::MinValue; $script:usageAt = $null
+        [void]$btns.Children.Add((New-IconButton 'refresh' 'Baca ulang kuota terakhir. Angkanya berubah setelah Claude Code menerima respons.' {
+                    $script:usageFileTime = [datetime]::MinValue
                     Read-UsageFile
+                    $data = if ($script:usageAt) { 'data {0:HH:mm}' -f $script:usageAt } else { 'belum ada data' }
+                    $script:refreshMsg = 'Dicek {0:HH:mm}  ·  {1}' -f [datetime]::Now, $data
+                    $script:refreshMsgUntil = [datetime]::Now.AddSeconds(4)
+                    Refresh-UI
                 }))
     }
     elseif ($script:apiBackoff -gt 0) {
@@ -1018,6 +1030,7 @@ function Add-Footer {
     [void]$foot.Children.Add($btns)
 
     if ($script:usageErr) { $ft = New-Text $script:usageErr 10.5 $C.Red; $ft.TextWrapping = 'Wrap' }
+    elseif ($script:refreshMsg) { $ft = New-Text $script:refreshMsg 10.5 $C.Text }
     elseif ($script:usageAt) {
         $fmt = if ($script:usageAt.Date -eq [datetime]::Today) { 'HH:mm' } else { 'd MMM HH:mm' }
         $when = $script:usageAt.ToString($fmt, [Globalization.CultureInfo]'id-ID')
@@ -1135,7 +1148,7 @@ function Get-ExpandedKey {
         $(if ($n) { "$($n.kind)|$($n.title)|$($n.project)|$($n.body)" } else { '-' }),
         (($limits | ForEach-Object { $r = Format-Reset $_.Reset; "$($_.Label)=$([math]::Round($_.Pct))/$($r.Short)" }) -join ','),
         (($script:sessions.Values | Sort-Object { $_.ts } -Descending | Select-Object -First 4 | ForEach-Object { "$($_.project):$($_.state)" }) -join ','),
-        $script:sound, $script:apiBackoff, $script:usageErr, $script:usageNote, $script:usageSource, $script:confirmUninstall,
+        $script:sound, $script:apiBackoff, $script:usageErr, $script:usageNote, $script:usageSource, $script:confirmUninstall, $script:refreshMsg,
         $(if ($script:usageAt) { $script:usageAt.ToString('dd HH:mm') })
     )
     $parts -join '#'
@@ -1329,6 +1342,8 @@ function Handle-Event($e) {
     if ($e.tty) { $s.tty = [string]$e.tty }
     if ($e.transcript) { $s.transcript = [string]$e.transcript }
 
+    if ($e.event -in 'UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'Stop') { $script:lastActivity = [datetime]::Now }
+
     switch ($e.event) {
         'SessionStart' { $s.state = 'idle' }
         'UserPromptSubmit' { $s.state = 'working'; $s.activity = 'think'; $s.promptTs = [double]$e.ts }
@@ -1474,6 +1489,15 @@ function Read-UsageFile {
     Refresh-UI
 }
 
+# Statusline hanya dimuat saat sesi Claude Code dimulai, sedangkan hook langsung aktif. Jadi sesi
+# yang sudah berjalan saat island dipasang tetap mengirim event, tetapi kuotanya beku.
+function Update-StaleNote($now) {
+    if ($UseApiFallback -or -not $script:usageAt -or -not $script:lastActivity) { return }
+    $stale = ($script:lastActivity - $script:usageAt).TotalMinutes -gt $StaleUsageMinutes
+    $note = if ($stale) { 'Kuota beku sejak {0:HH:mm}. Buka ulang sesi Claude Code.' -f $script:usageAt } else { $null }
+    if ($note -ne $script:usageNote) { $script:usageNote = $note; Refresh-UI }
+}
+
 function Usage-IsFresh {
     $script:usageSource -eq 'Claude Code' -and $script:usageAt -and
     ([datetime]::Now - $script:usageAt).TotalMinutes -lt $FreshMinutes
@@ -1562,6 +1586,8 @@ function Tick {
     # Maskot "error" sekilas (alat gagal) kembali normal setelah 2 detik.
     if ($script:mascotMode -eq 'error' -and $now -ge $script:errorFlashUntil -and -not ($script:notif -and $script:notif.kind -eq 'error')) { Update-Compact }
 
+    if ($script:refreshMsg -and $now -ge $script:refreshMsgUntil) { $script:refreshMsg = $null; Refresh-UI }
+
     $dragging = $Expanded.IsMouseCaptureWithin
     if ($script:rebuildAfterDrag -and -not $dragging) {
         $script:rebuildAfterDrag = $false
@@ -1580,6 +1606,9 @@ function Tick {
 
     if (($now - $script:lastHousekeep).TotalSeconds -ge 3) {
         $script:lastHousekeep = $now
+        $limitSig = (Get-Limits | ForEach-Object { $_.Pct }) -join ','
+        if ($limitSig -ne $script:limitSig) { $script:limitSig = $limitSig; Refresh-UI }
+        Update-StaleNote $now
         [IslandNative]::Top($hwnd)
 
         # Buang sesi yang sudah lama tidak ada kabar (mis. terminal ditutup paksa).

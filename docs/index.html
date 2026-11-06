@@ -260,7 +260,7 @@
         <h3>Tombol dan slider di panel</h3>
         <p class="lead">Muncul saat kursor diarahkan ke pil.</p>
         <ul class="btn-list">
-          <li><span class="btn-chip"><svg class="icon" aria-hidden="true"><use href="#ii-refresh"/></svg></span><div><strong>Muat ulang kuota</strong><p>Membaca ulang angka kuota terbaru dari Claude Code.</p></div></li>
+          <li><span class="btn-chip"><svg class="icon" aria-hidden="true"><use href="#ii-refresh"/></svg></span><div><strong>Muat ulang kuota</strong><p>Membaca ulang kuota terakhir dan menampilkan waktu datanya. Angkanya berubah setelah Claude Code menerima respons.</p></div></li>
           <li><span class="btn-chip"><svg class="icon" aria-hidden="true"><use href="#ii-sound-on"/></svg></span><div><strong>Suara nyala/mati</strong><p>Menyalakan atau mematikan suara notifikasi. Pilihan Anda diingat.</p></div></li>
           <li><span class="btn-chip"><svg class="icon" aria-hidden="true"><use href="#ii-sound-on"/></svg></span><div><strong>Slider volume</strong><p>Geser untuk mengatur besar suara notifikasi. Suara contoh diputar saat dilepas, dan pilihan Anda diingat.</p></div></li>
           <li><span class="btn-chip"><svg class="icon" aria-hidden="true"><use href="#ii-bell"/></svg></span><div><strong>Tes suara</strong><p>Memutar suara notifikasi untuk mengecek volume.</p></div></li>
@@ -313,7 +313,7 @@
       <ol class="process" style="--process-cols: 3">
         <li><strong>Buka Claude Code di WSL</strong><p>Jalankan <code>claude</code> dari terminal WSL (bukan PowerShell).</p></li>
         <li><strong>Minta Claude memasang</strong><p>Salin pesan di bawah. Kalau Claude meminta izin, setujui: installer mengubah setelan Claude Code dan <code>~/.bashrc</code>.</p></li>
-        <li><strong>Kirim satu prompt</strong><p>Pil muncul di tengah atas layar, dan kuota tampil setelah prompt pertama.</p></li>
+        <li><strong>Buka ulang sesi Claude Code</strong><p>Keluar lalu jalankan <code>claude</code> lagi, kemudian kirim satu prompt. Tanpa ini, angka kuota tidak diperbarui.</p></li>
       </ol>
 
       <div class="install" style="margin-top: var(--space-lg)">

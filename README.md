@@ -60,8 +60,9 @@ Dibuat oleh **[Gus Khamim](https://guskhamim.com)** · [Situs resmi](https://ami
    ! cd origin-island && ./install.sh
    ```
 
-4. Kirim satu prompt apa saja. Pil muncul di tengah atas layar, dan kuota tampil setelah prompt
-   pertama (datanya dikirim lewat statusline saat Claude Code dipakai).
+4. **Keluar dari Claude Code lalu jalankan `claude` lagi**, kemudian kirim satu prompt. Sesi yang sudah
+   berjalan saat pemasangan tidak memuat statusline, jadi angka kuotanya tidak diperbarui. Pil muncul di
+   tengah atas layar, dan kuota tampil setelah prompt pertama.
 
 Tidak perlu membuat folder sendiri; `git clone` sudah membuat folder `origin-island`.
 
@@ -73,8 +74,8 @@ cd origin-island
 ./install.sh
 ```
 
-Setelah itu kirim satu prompt ke Claude Code. Kalau notifikasi belum muncul, buka ulang sesi
-Claude Code yang sedang berjalan.
+Setelah itu **buka ulang sesi Claude Code yang sedang berjalan** (hook langsung aktif, tetapi statusline
+baru dimuat di sesi baru), lalu kirim satu prompt.
 
 > **Perhatikan:** kuota hanya tampil bila login dengan langganan **Pro/Max** dan Anda **belum** punya
 > statusline sendiri (statusline yang sudah ada tidak ditimpa). Pengguna **zsh** tidak mendapat
@@ -111,7 +112,7 @@ tidak berat karena ikut membangunkan WSL):
 
   | Ikon | Fungsi |
   |---|---|
-  | `refresh.svg` | Muat ulang data kuota terakhir dari Claude Code |
+  | `refresh.svg` | Baca ulang kuota terakhir dan tampilkan waktu datanya. Angkanya berubah setelah Claude Code menerima respons |
   | `sound-on.svg` / `sound-off.svg` | Nyalakan/matikan suara |
   | `bell.svg` | Tes suara notifikasi |
   | `center.svg` | Ke tengah layar tempat island berada |
@@ -193,6 +194,9 @@ sendiri.
 - **Melapor masalah**: sertakan isi `island.log` di atas dan output `./install.sh`.
 - **Antivirus** kadang memblokir skrip `.vbs`/PowerShell tersembunyi. Izinkan
   `%LOCALAPPDATA%\OriginIsland\start-island.vbs`.
+- **Kuota berbeda dengan `/usage`**: lihat jam di kiri bawah panel. Kalau sudah lama, atau muncul peringatan
+  "Kuota beku", buka ulang sesi Claude Code. Angka island berasal dari respons terakhir Claude Code, jadi
+  pemakaian di perangkat lain baru terlihat setelah request berikutnya.
 - **Kuota tidak tampil**: pastikan login dengan langganan Claude (bukan API key) dan kirim satu prompt
   supaya statusline mengirim data.
 

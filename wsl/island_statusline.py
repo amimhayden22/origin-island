@@ -15,6 +15,7 @@ import time
 
 CACHE = os.path.expanduser("~/.claude/island/last_usage.json")
 WINDOWS = ["five_hour", "seven_day", "seven_day_opus", "seven_day_sonnet"]
+RESET_TOLERANCE = 60  # detik; waktu reset dari server bisa sedikit bergeser
 
 
 def to_iso(value):
@@ -40,16 +41,43 @@ def extract(data):
     return usage
 
 
+def reset_epoch(window):
+    try:
+        return dt.datetime.fromisoformat(window.get("resets_at")).timestamp()
+    except (TypeError, ValueError):
+        return None
+
+
+def merge(usage, last):
+    """Tiap sesi hanya tahu kuota dari request terakhirnya, jadi sesi yang idle membawa angka lama.
+    Dalam satu jendela reset angkanya hanya naik; jendela yang lebih lama diabaikan."""
+    merged = dict(last, **usage)
+    for key, new in usage.items():
+        old = last.get(key)
+        if not isinstance(old, dict):
+            continue
+        new_reset, old_reset = reset_epoch(new), reset_epoch(old)
+        if new_reset is None or old_reset is None:
+            continue
+        if new_reset < old_reset - RESET_TOLERANCE:
+            merged[key] = old
+        elif abs(new_reset - old_reset) <= RESET_TOLERANCE and old["utilization"] > new["utilization"]:
+            merged[key] = old
+    return merged
+
+
 def save(usage, out):
-    """Tulis ke disk Windows hanya bila angkanya berubah (statusline dipanggil sering)."""
+    """Tulis ke disk Windows hanya bila angkanya berubah (statusline dipanggil sering).
+    Mengembalikan angka gabungan semua sesi."""
     try:
         with open(CACHE) as f:
             last = json.load(f)
     except (OSError, ValueError):
         last = {}
+    usage = merge(usage, last.get("usage") or {})
     # Tetap tulis ulang tiap 5 menit supaya island tahu datanya masih segar.
     if last.get("usage") == usage and time.time() - last.get("ts", 0) < 300:
-        return
+        return usage
     record = dict(usage, source="statusline", ts=time.time())
     tmp = out + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
@@ -58,6 +86,7 @@ def save(usage, out):
     os.makedirs(os.path.dirname(CACHE), exist_ok=True)
     with open(CACHE, "w") as f:
         json.dump({"usage": usage, "ts": time.time()}, f)
+    return usage
 
 
 def main():
@@ -66,7 +95,7 @@ def main():
     usage = extract(data)
     if usage:
         try:
-            save(usage, out)
+            usage = save(usage, out)
         except OSError:
             pass
 
