@@ -194,7 +194,7 @@ public static class IslandNative {
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Origin Island" WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         Topmost="True" ShowInTaskbar="False" ResizeMode="NoResize" ShowActivated="False"
-        Width="420" Height="330" UseLayoutRounding="True">
+        Width="420" Height="440" UseLayoutRounding="True">
   <!-- Island = 3 lapis bertumpuk:
        Pill     : latar hitam KOSONG - hanya ini yang ukurannya dianimasikan (murah & mulus).
        Compact  : baris atas, lebarnya mengikuti Pill.
