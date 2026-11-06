@@ -180,8 +180,9 @@ sendiri.
   island hanya memunculkan jendelanya. Untuk membuka kuncinya, tambahkan
   `"suppressApplicationTitle": false` pada profil distro di setelan Windows Terminal.
 - Di VS Code, klik memunculkan jendela folder sesi, tetapi belum bisa memilih panel terminalnya.
-- Pembatalan perintah (Esc) terdeteksi dari transcript Claude Code karena tidak ada hook untuk itu;
-  format transcript bukan API resmi, jadi deteksinya bisa berhenti bekerja setelah Claude Code diperbarui.
+- Pembatalan perintah (Esc) terdeteksi dari file status sesi dan transcript Claude Code karena tidak ada
+  hook untuk itu; keduanya bukan API resmi, jadi deteksinya bisa berhenti bekerja setelah Claude Code
+  diperbarui.
 - Autostart saat terminal dibuka hanya untuk **bash**. Pengguna zsh/fish tetap mendapat island saat
   Claude Code dipakai (lewat hook).
 - Kuota hanya diperbarui saat Claude Code dipakai (kecuali API cadangan dinyalakan).

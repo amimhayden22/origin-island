@@ -432,7 +432,7 @@ function Animate($el, $prop, [double]$to, [int]$ms, $ease, [int]$delay = 0, [int
 }
 
 # --- state -------------------------------------------------------------------
-$script:sessions = @{}         # session_id -> @{ project; state; ts; cwd; distro; term; tty; transcript; promptTs }
+$script:sessions = @{}         # session_id -> @{ project; state; ts; cwd; distro; term; tty; transcript; statusFile; promptTs }
 $script:notif = $null          # @{ kind; title; project; body; term; cwd; distro; tty }
 $script:notifUntil = [datetime]::MinValue
 $script:isExpanded = $false
@@ -483,6 +483,7 @@ function Resolve-Sound($configured, $bundled) {
 $SoundDone = Resolve-Sound $cfg.soundDone 'claude-selesai.mp3'
 $SoundAttention = Resolve-Sound $cfg.soundAttention 'claude-butuh-izin.mp3'
 $SoundError = Resolve-Sound $cfg.soundError 'claude-gagal.mp3'
+$IdleGraceSeconds = 2.5
 $StaleUsageMinutes = 10   # statusline menulis ulang minimal tiap 5 menit selama sesi aktif
 $script:SoundVolume = if ($null -ne $cfg.soundVolume) { [math]::Min(1.0, [math]::Max(0.0, [double]$cfg.soundVolume)) } else { 1.0 }
 $script:savedVolume = $script:SoundVolume
@@ -1341,6 +1342,7 @@ function Handle-Event($e) {
     if ($e.cwd) { $s.cwd = [string]$e.cwd; $s.distro = [string]$e.distro; $s.term = [string]$e.term }
     if ($e.tty) { $s.tty = [string]$e.tty }
     if ($e.transcript) { $s.transcript = [string]$e.transcript }
+    if ($e.statusFile) { $s.statusFile = [string]$e.statusFile }
 
     if ($e.event -in 'UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'Stop') { $script:lastActivity = [datetime]::Now }
 
@@ -1411,14 +1413,29 @@ function Test-TurnInterrupted($path, [double]$sinceTs) {
     return $false
 }
 
-# Claude Code tidak mengirim hook saat perintah dibatalkan: kembalikan sesinya ke idle dari
-# transcript, tanpa notifikasi "selesai" karena Claude memang tidak selesai.
+# True bila file status Claude Code menyatakan sesi sudah idle setelah prompt terakhir. Ini juga
+# menangkap Esc yang sangat cepat, yang tidak meninggalkan penanda di transcript. Saat selesai normal,
+# status idle datang bersamaan dengan hook Stop, jadi hook itu diberi waktu lebih dulu.
+function Test-SessionIdle($id, $s) {
+    $st = [System.IO.File]::ReadAllText((WslPath $s $s.statusFile)) | ConvertFrom-Json
+    if ($st.sessionId -ne $id -or $st.status -ne 'idle') { return $false }
+    $at = [double]$st.statusUpdatedAt / 1000
+    $now = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() / 1000
+    $at -gt [double]$s.promptTs -and ($now - $at) -ge $IdleGraceSeconds
+}
+
+function WslPath($s, $path) { "\\wsl.localhost\$($s.distro)" + $path.Replace('/', '\') }
+
+# Claude Code tidak mengirim hook saat perintah dibatalkan: kembalikan sesinya ke idle dari file
+# status dan transcript, tanpa notifikasi "selesai" karena Claude memang tidak selesai.
 function Check-Interrupted {
     $changed = $false
-    foreach ($s in @($script:sessions.Values)) {
-        if ($s.state -notin 'working', 'attention' -or -not $s.transcript -or -not $s.distro) { continue }
-        $path = "\\wsl.localhost\$($s.distro)" + $s.transcript.Replace('/', '\')
-        try { $hit = Test-TurnInterrupted $path ([double]$s.promptTs) } catch { continue }
+    foreach ($id in @($script:sessions.Keys)) {
+        $s = $script:sessions[$id]
+        if ($s.state -notin 'working', 'attention' -or -not $s.distro) { continue }
+        $hit = $false
+        if ($s.statusFile) { try { $hit = Test-SessionIdle $id $s } catch {} }
+        if (-not $hit -and $s.transcript) { try { $hit = Test-TurnInterrupted (WslPath $s $s.transcript) ([double]$s.promptTs) } catch {} }
         if ($hit) {
             $s.state = 'idle'; $s.activity = $null; $changed = $true
             Log "sesi $($s.project) dibatalkan pengguna, status kembali idle"

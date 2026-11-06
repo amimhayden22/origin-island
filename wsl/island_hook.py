@@ -70,6 +70,18 @@ def session_tty():
     return ""
 
 
+def session_status_file():
+    """File status sesi Claude Code (idle/busy/waiting), dinamai dari pid proses claude."""
+    pid = os.getppid()
+    while pid > 1:
+        path = os.path.expanduser(f"~/.claude/sessions/{pid}.json")
+        if os.path.exists(path):
+            return path
+        with open(f"/proc/{pid}/stat", encoding="utf-8", errors="replace") as f:
+            pid = int(f.read().rsplit(")", 1)[1].split()[1])
+    return ""
+
+
 def main():
     out = sys.argv[sys.argv.index("--out") + 1]
     data = json.load(sys.stdin)
@@ -88,6 +100,7 @@ def main():
         # (Claude Code tidak mengirim hook apa pun saat perintah dibatalkan).
         "tty": session_tty(),
         "transcript": data.get("transcript_path", ""),
+        "statusFile": session_status_file(),
     }
     if event == "Stop":
         msg = data.get("last_assistant_message") or last_assistant_text(data.get("transcript_path"))
