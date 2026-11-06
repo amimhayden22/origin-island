@@ -1,7 +1,7 @@
 # Origin Island - notifikasi ala Dynamic Island untuk Claude Code (WSL) di Windows.
 # Jalankan dengan: powershell -NoProfile -ExecutionPolicy Bypass -STA -File island.ps1
 
-Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, System.Net.Http
+Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, System.Net.Http, UIAutomationClient, UIAutomationTypes
 # Aplikasi latar belakang: jangan rebutan CPU dengan aplikasi lain.
 try { [System.Diagnostics.Process]::GetCurrentProcess().PriorityClass = 'BelowNormal' } catch {}
 
@@ -98,8 +98,34 @@ public static class IslandNative {
     [DllImport("user32.dll")] static extern bool IsIconic(IntPtr h);
     [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr h, int cmd);
     [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr h);
+    [DllImport("user32.dll")] static extern bool BringWindowToTop(IntPtr h);
+    [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, IntPtr pid);
+    [DllImport("user32.dll")] static extern bool AttachThreadInput(uint from, uint to, bool attach);
+    [DllImport("user32.dll")] static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
+    [DllImport("kernel32.dll")] static extern uint GetCurrentThreadId();
 
-    // Munculkan jendela teratas (urutan Z) dengan kelas tertentu. False bila tidak ada.
+    // Windows menolak SetForegroundWindow dari proses latar belakang (island tidak pernah aktif
+    // karena WS_EX_NOACTIVATE). Kalau ditolak, tumpangi antrean input jendela yang sedang aktif;
+    // kalau masih ditolak, kirim ketukan Alt supaya Windows melepas kuncian foreground.
+    public static bool ForceForeground(IntPtr h) {
+        if (IsIconic(h)) ShowWindow(h, 9);   // SW_RESTORE
+        SetForegroundWindow(h);
+        if (GetForegroundWindow() == h) return true;
+
+        uint me = GetCurrentThreadId();
+        uint fg = GetWindowThreadProcessId(GetForegroundWindow(), IntPtr.Zero);
+        bool attached = fg != 0 && fg != me && AttachThreadInput(me, fg, true);
+        try { BringWindowToTop(h); SetForegroundWindow(h); }
+        finally { if (attached) AttachThreadInput(me, fg, false); }
+        if (GetForegroundWindow() == h) return true;
+
+        keybd_event(0x12, 0, 0, UIntPtr.Zero);       // Alt turun
+        keybd_event(0x12, 0, 2, UIntPtr.Zero);       // Alt naik
+        SetForegroundWindow(h);
+        return GetForegroundWindow() == h;
+    }
+
+    // Munculkan jendela teratas (urutan Z) dengan kelas tertentu. False bila gagal.
     public static bool FocusWindowOfClass(string cls) {
         IntPtr found = IntPtr.Zero;
         EnumWindows(delegate (IntPtr h, IntPtr l) {
@@ -108,10 +134,7 @@ public static class IslandNative {
             if (sb.ToString() == cls) { found = h; return false; }
             return true;
         }, IntPtr.Zero);
-        if (found == IntPtr.Zero) return false;
-        if (IsIconic(found)) ShowWindow(found, 9);   // SW_RESTORE
-        SetForegroundWindow(found);
-        return true;
+        return found != IntPtr.Zero && ForceForeground(found);
     }
 
     [DllImport("user32.dll")] static extern IntPtr MonitorFromWindow(IntPtr h, uint flags);
@@ -409,8 +432,8 @@ function Animate($el, $prop, [double]$to, [int]$ms, $ease, [int]$delay = 0, [int
 }
 
 # --- state -------------------------------------------------------------------
-$script:sessions = @{}         # session_id -> @{ project; state; ts; cwd; distro; term }
-$script:notif = $null          # @{ kind; title; project; body; term; cwd; distro }
+$script:sessions = @{}         # session_id -> @{ project; state; ts; cwd; distro; term; tty; transcript; promptTs }
+$script:notif = $null          # @{ kind; title; project; body; term; cwd; distro; tty }
 $script:notifUntil = [datetime]::MinValue
 $script:isExpanded = $false
 $script:confirmUninstall = $false
@@ -440,6 +463,8 @@ $script:token = $null
 $script:tokenExp = 0
 $script:forceToken = $false
 $script:lastHousekeep = [datetime]::MinValue
+$script:lastInterruptCheck = [datetime]::MinValue
+$script:rebuildAfterDrag = $false
 $script:lastWslCheck = [datetime]::MinValue
 $script:hiddenForFullscreen = $false
 $script:fullscreenHits = 0
@@ -453,7 +478,9 @@ function Resolve-Sound($configured, $bundled) {
 }
 $SoundDone = Resolve-Sound $cfg.soundDone 'claude-selesai.mp3'
 $SoundAttention = Resolve-Sound $cfg.soundAttention 'claude-butuh-izin.mp3'
-$SoundVolume = if ($null -ne $cfg.soundVolume) { [double]$cfg.soundVolume } else { 1.0 }
+$SoundError = Resolve-Sound $cfg.soundError 'claude-gagal.mp3'
+$script:SoundVolume = if ($null -ne $cfg.soundVolume) { [math]::Min(1.0, [math]::Max(0.0, [double]$cfg.soundVolume)) } else { 1.0 }
+$script:savedVolume = $script:SoundVolume
 
 # Kuota datang dari statusline Claude Code (fitur resmi, tanpa request tambahan) lewat usage.json.
 # API usage (endpoint tidak resmi + membaca token OAuth) hanya cadangan dan MATI secara default;
@@ -564,7 +591,66 @@ function Drag-End {
     if ($script:notif) { Dismiss-Notif }
 }
 
-# Munculkan terminal tempat sesi berjalan. $t butuh: term ('wt'/'vscode'), cwd, distro.
+# Tulis teks ke terminal sesi. Lewat base64 supaya isi teks tidak perlu di-escape untuk shell.
+# False bila gagal, mis. sesinya sudah tidak ada.
+function Send-ToTty($distro, $tty, $text) {
+    $b64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($text))
+    $psi = New-Object System.Diagnostics.ProcessStartInfo 'wsl.exe'
+    $psi.Arguments = "-d $distro -e sh -c `"echo $b64 | base64 -d > $tty`""
+    $psi.UseShellExecute = $false
+    $psi.CreateNoWindow = $true
+    $p = [System.Diagnostics.Process]::Start($psi)
+    $p.WaitForExit(3000) -and $p.ExitCode -eq 0
+}
+
+# Pilih tab Windows Terminal milik sesi. Windows Terminal tidak punya API "tab dari pts", jadi
+# judul tab diganti sebentar dengan penanda unik, dicari lewat UI Automation, lalu dikembalikan.
+# Profil WSL bawaan mengunci judul (suppressApplicationTitle), jadi penandanya tidak akan muncul:
+# judul tab seperti itu selalu nama distro, dan bisa dipilih selama hanya ada satu.
+function Focus-SessionTab($t) {
+    if ($t.tty -notmatch '^/dev/pts/\d+$' -or -not $t.distro) { return $false }
+    $ae = [System.Windows.Automation.AutomationElement]
+    $scope = [System.Windows.Automation.TreeScope]
+    $isWt = New-Object System.Windows.Automation.PropertyCondition($ae::ClassNameProperty, 'CASCADIA_HOSTING_WINDOW_CLASS')
+    $isTab = New-Object System.Windows.Automation.PropertyCondition($ae::ControlTypeProperty, [System.Windows.Automation.ControlType]::TabItem)
+
+    $targets = New-Object System.Collections.ArrayList
+    foreach ($w in $ae::RootElement.FindAll($scope::Children, $isWt)) {
+        $hwnd = [IntPtr]$w.Current.NativeWindowHandle
+        $tabs = $w.FindAll($scope::Descendants, $isTab)
+        foreach ($tab in $tabs) {
+            [void]$targets.Add(@{ El = $tab; Tab = $true; Hwnd = $hwnd; Old = $tab.Current.Name })
+        }
+        # Dengan satu tab, baris tab bisa tersembunyi; judul jendela = judul tab.
+        if ($tabs.Count -eq 0) { [void]$targets.Add(@{ El = $w; Tab = $false; Hwnd = $hwnd; Old = $w.Current.Name }) }
+    }
+    if ($targets.Count -eq 0) { return $false }
+
+    $esc = [char]27; $bel = [char]7
+    $marker = 'origin-island-' + [guid]::NewGuid().ToString('N').Substring(0, 8)
+    if (-not (Send-ToTty $t.distro $t.tty "$esc]0;$marker$bel")) { return $false }
+
+    $hit = $null
+    $deadline = [datetime]::Now.AddMilliseconds(400)
+    while (-not $hit -and [datetime]::Now -lt $deadline) {
+        $hit = $targets | Where-Object { $_.El.Current.Name -eq $marker } | Select-Object -First 1
+        if (-not $hit) { Start-Sleep -Milliseconds 50 }
+    }
+    $marked = [bool]$hit
+    if (-not $hit) {
+        $locked = @($targets | Where-Object { $_.Old -eq $t.distro })
+        if ($locked.Count -eq 1) { $hit = $locked[0] }
+    }
+    if (-not $marked) { [void](Send-ToTty $t.distro $t.tty "$esc]0;$bel") }   # bersihkan bila penanda tertahan (mis. tmux)
+    if (-not $hit) { return $false }
+    if ($hit.Tab) { $hit.El.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select() }
+    $focused = [IslandNative]::ForceForeground($hit.Hwnd)
+    if ($marked) { [void](Send-ToTty $t.distro $t.tty "$esc]0;$($hit.Old)$bel") }
+    if (-not $focused) { Log 'Open-Terminal: Windows menolak memunculkan jendela terminal' }
+    return $true
+}
+
+# Munculkan terminal tempat sesi berjalan. $t butuh: term ('wt'/'vscode'), cwd, distro, tty.
 function Open-Terminal($t) {
     try {
         if ($t.term -eq 'vscode' -and $t.cwd -and $t.distro) {
@@ -576,8 +662,9 @@ function Open-Terminal($t) {
                 return
             }
         }
+        if (Focus-SessionTab $t) { return }
         if (-not [IslandNative]::FocusWindowOfClass('CASCADIA_HOSTING_WINDOW_CLASS')) {
-            Log 'Open-Terminal: jendela Windows Terminal tidak ditemukan'
+            Log 'Open-Terminal: jendela Windows Terminal tidak ditemukan atau menolak fokus'
         }
     }
     catch { Log "Open-Terminal: $_" }
@@ -777,6 +864,109 @@ function Start-Uninstall {
     catch { Log "uninstall gagal: $_" }
 }
 
+# Slider volume, mengikuti komponen range Origin Design System ("Volume musik latar").
+$VolumeSliderXaml = @"
+<Slider xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Minimum="0" Maximum="100" IsMoveToPointEnabled="True" Focusable="False" Cursor="Hand" Margin="0,4,0,2">
+  <Slider.Template>
+    <ControlTemplate TargetType="Slider">
+      <Grid Height="20" Background="Transparent">
+        <Border Height="6" CornerRadius="3" Background="$($C.ButtonDown)"/>
+        <Track x:Name="PART_Track">
+          <Track.DecreaseRepeatButton>
+            <RepeatButton Focusable="False" Command="{x:Static Slider.DecreaseLarge}">
+              <RepeatButton.Template>
+                <ControlTemplate TargetType="RepeatButton">
+                  <Grid Background="Transparent"><Border Height="6" CornerRadius="3" Background="$($C.Accent)"/></Grid>
+                </ControlTemplate>
+              </RepeatButton.Template>
+            </RepeatButton>
+          </Track.DecreaseRepeatButton>
+          <Track.IncreaseRepeatButton>
+            <RepeatButton Focusable="False" Command="{x:Static Slider.IncreaseLarge}">
+              <RepeatButton.Template>
+                <ControlTemplate TargetType="RepeatButton"><Grid Background="Transparent"/></ControlTemplate>
+              </RepeatButton.Template>
+            </RepeatButton>
+          </Track.IncreaseRepeatButton>
+          <Track.Thumb>
+            <Thumb Focusable="False" Width="16" Height="16">
+              <Thumb.Template>
+                <ControlTemplate TargetType="Thumb">
+                  <Ellipse Fill="$($C.Button)" Stroke="$($C.Accent)" StrokeThickness="2"/>
+                </ControlTemplate>
+              </Thumb.Template>
+            </Thumb>
+          </Track.Thumb>
+        </Track>
+      </Grid>
+    </ControlTemplate>
+  </Slider.Template>
+</Slider>
+"@
+
+function Add-VolumeRow {
+    $row = New-Object System.Windows.Controls.StackPanel
+    $row.Margin = '0,14,0,0'
+    $row.Background = [System.Windows.Media.Brushes]::Transparent
+    # Klik di area ini tidak boleh dianggap menyeret pil atau membuka terminal.
+    $row.Add_MouseLeftButtonDown({ param($snd, $ev) $ev.Handled = $true })
+    $row.Add_MouseLeftButtonUp({ param($snd, $ev) $ev.Handled = $true })
+
+    $head = New-Object System.Windows.Controls.DockPanel
+    $value = New-Text ('{0:0}%' -f ($script:SoundVolume * 100)) 11.5 $C.Text 'SemiBold'
+    [System.Windows.Controls.DockPanel]::SetDock($value, 'Right')
+    [void]$head.Children.Add($value)
+    [void]$head.Children.Add((New-Text 'Volume' 11.5 $C.Sub 'SemiBold'))
+    [void]$row.Children.Add($head)
+
+    $slider = [System.Windows.Markup.XamlReader]::Parse($VolumeSliderXaml)
+    $slider.Value = [math]::Round($script:SoundVolume * 100)
+    $slider.Tag = $value
+    $slider.IsEnabled = $script:sound
+    $slider.ToolTip = if ($script:sound) { 'Atur volume suara notifikasi' } else { 'Suara sedang mati' }
+    $slider.Add_ValueChanged({
+            param($snd, $ev)
+            $snd.Tag.Text = '{0:0}%' -f $snd.Value
+            $script:SoundVolume = [math]::Round($snd.Value) / 100
+            $script:player.Volume = $script:SoundVolume
+        })
+    $slider.Add_PreviewMouseLeftButtonUp({ Commit-Volume })
+    # IsMoveToPointEnabled hanya memindahkan thumb saat track ditekan, lalu geserannya diabaikan.
+    # Teruskan penekanan ke thumb supaya bisa langsung digeser tanpa melepas mouse.
+    [void]$slider.ApplyTemplate()
+    $slider.AddHandler([System.Windows.UIElement]::PreviewMouseLeftButtonDownEvent, [System.Windows.Input.MouseButtonEventHandler]{
+            param($snd, $ev)
+            $thumb = $snd.Template.FindName('PART_Track', $snd).Thumb
+            if ($thumb.IsMouseCaptured) { return }
+            $snd.UpdateLayout()
+            $press = New-Object System.Windows.Input.MouseButtonEventArgs($ev.MouseDevice, $ev.Timestamp, 'Left')
+            $press.RoutedEvent = [System.Windows.UIElement]::MouseLeftButtonDownEvent
+            $press.Source = $thumb
+            $thumb.RaiseEvent($press)
+        }, $true)
+    [void]$row.Children.Add($slider)
+
+    $scale = New-Object System.Windows.Controls.DockPanel
+    $max = New-Text 'Penuh' 10 $C.Dim
+    [System.Windows.Controls.DockPanel]::SetDock($max, 'Right')
+    [void]$scale.Children.Add($max)
+    [void]$scale.Children.Add((New-Text 'Senyap' 10 $C.Dim))
+    [void]$row.Children.Add($scale)
+
+    if (-not $script:sound) { $row.Opacity = 0.5 }
+    [void]$Expanded.Children.Add($row)
+}
+
+# Simpan volume saat slider dilepas, lalu putar contoh supaya hasilnya langsung terdengar.
+function Commit-Volume {
+    if ($script:SoundVolume -eq $script:savedVolume) { return }
+    $script:savedVolume = $script:SoundVolume
+    Save-Config 'soundVolume' $script:SoundVolume
+    Play-Sound 'done'
+}
+
 function Add-Footer {
     $foot = New-Object System.Windows.Controls.DockPanel
     $foot.Margin = '0,14,0,0'
@@ -918,6 +1108,7 @@ function Build-Expanded {
         [void]$Expanded.Children.Add($nt)
     }
     Add-SessionRows
+    Add-VolumeRow
     Add-Footer
 }
 
@@ -953,6 +1144,8 @@ function Get-ExpandedKey {
 # Bangun isi panel hanya bila datanya berubah. Membuat elemen WPF dari PowerShell itu lambat,
 # jadi sebisa mungkin dikerjakan saat pil sedang diam (lihat Tick), bukan saat animasi.
 function Ensure-Expanded {
+    # Sedang menggeser slider: jangan bangun ulang panel, nanti slidernya hilang di tengah geseran.
+    if ($Expanded.IsMouseCaptureWithin) { $script:rebuildAfterDrag = $true; return }
     $key = Get-ExpandedKey
     if ($key -ne $script:expandedKey) {
         Build-Expanded
@@ -1084,12 +1277,12 @@ function Play-WindowsSound($kind) {
 function Play-Sound($kind, [switch]$Force) {
     if (-not $script:sound -and -not $Force) { return }
     $script:lastSoundKind = $kind
-    $file = if ($kind -eq 'done') { $SoundDone } else { $SoundAttention }
+    $file = switch ($kind) { 'done' { $SoundDone } 'error' { $SoundError } default { $SoundAttention } }
     if (-not [System.IO.File]::Exists($file)) { Play-WindowsSound $kind; return }
     try {
         $script:player.Stop()
         $script:player.Open((New-Object System.Uri($file)))
-        $script:player.Volume = $SoundVolume
+        $script:player.Volume = $script:SoundVolume
         $script:player.Play()
     }
     catch { Log "suara: $_"; Play-WindowsSound $kind }
@@ -1109,7 +1302,7 @@ function Set-Hidden([bool]$hidden) {
 function Show-Notif($kind, $title, $project, $body, $sess) {
     $script:notif = @{
         kind = $kind; title = $title; project = $project; body = $body
-        term = $sess.term; cwd = $sess.cwd; distro = $sess.distro
+        term = $sess.term; cwd = $sess.cwd; distro = $sess.distro; tty = $sess.tty
     }
     $script:notifUntil = [datetime]::Now.AddSeconds([double]$cfg.notifySeconds)
     Set-Hidden $false
@@ -1133,10 +1326,12 @@ function Handle-Event($e) {
     $s = $script:sessions[$id]
     $s.ts = [datetime]::Now; $s.project = $proj
     if ($e.cwd) { $s.cwd = [string]$e.cwd; $s.distro = [string]$e.distro; $s.term = [string]$e.term }
+    if ($e.tty) { $s.tty = [string]$e.tty }
+    if ($e.transcript) { $s.transcript = [string]$e.transcript }
 
     switch ($e.event) {
         'SessionStart' { $s.state = 'idle' }
-        'UserPromptSubmit' { $s.state = 'working'; $s.activity = 'think' }
+        'UserPromptSubmit' { $s.state = 'working'; $s.activity = 'think'; $s.promptTs = [double]$e.ts }
         # Event alat sering sekali: cukup perbarui maskot, panel dibangun ulang belakangan.
         'PreToolUse' { $s.state = 'working'; $s.activity = 'tool'; Update-Compact; return }
         'PostToolUse' {
@@ -1170,6 +1365,51 @@ function Handle-Event($e) {
         'SessionEnd' { $script:sessions.Remove($id) }
     }
     Refresh-UI
+}
+
+# True bila giliran terakhir di transcript berakhir karena dibatalkan pengguna, setelah prompt
+# terakhir ($sinceTs). Hanya melihat bagian akhir file; catatan selain user/assistant dilewati.
+function Test-TurnInterrupted($path, [double]$sinceTs) {
+    $fs = [System.IO.File]::Open($path, 'Open', 'Read', 'ReadWrite,Delete')
+    try {
+        $len = [math]::Min($fs.Length, 32768)
+        [void]$fs.Seek(-$len, 'End')
+        $buf = New-Object byte[] $len
+        [void]$fs.Read($buf, 0, $len)
+    }
+    finally { $fs.Dispose() }
+    $lines = [Text.Encoding]::UTF8.GetString($buf) -split "\n"
+    for ($i = $lines.Count - 1; $i -ge 0; $i--) {
+        # Dipilah dulu tanpa parse: catatan api-request bisa besar dan terpotong di awal buffer.
+        if ($lines[$i] -notmatch '"type":\s*"(user|assistant)"') { continue }
+        try { $rec = $lines[$i] | ConvertFrom-Json } catch { continue }
+        if ($rec.type -notin 'user', 'assistant' -or $rec.isSidechain) { continue }
+        if ($rec.type -ne 'user') { return $false }
+        foreach ($c in @($rec.message.content)) {
+            $text = if ($c -is [string]) { $c } elseif ($c.type -eq 'text') { [string]$c.text } else { '' }
+            if ($text.StartsWith('[Request interrupted by user')) {
+                return [DateTimeOffset]::Parse($rec.timestamp).ToUnixTimeMilliseconds() / 1000 -gt $sinceTs
+            }
+        }
+        return $false
+    }
+    return $false
+}
+
+# Claude Code tidak mengirim hook saat perintah dibatalkan: kembalikan sesinya ke idle dari
+# transcript, tanpa notifikasi "selesai" karena Claude memang tidak selesai.
+function Check-Interrupted {
+    $changed = $false
+    foreach ($s in @($script:sessions.Values)) {
+        if ($s.state -notin 'working', 'attention' -or -not $s.transcript -or -not $s.distro) { continue }
+        $path = "\\wsl.localhost\$($s.distro)" + $s.transcript.Replace('/', '\')
+        try { $hit = Test-TurnInterrupted $path ([double]$s.promptTs) } catch { continue }
+        if ($hit) {
+            $s.state = 'idle'; $s.activity = $null; $changed = $true
+            Log "sesi $($s.project) dibatalkan pengguna, status kembali idle"
+        }
+    }
+    if ($changed) { Refresh-UI }
 }
 
 function Read-Events {
@@ -1314,11 +1554,21 @@ function Tick {
         if ($now -ge $script:nextUsage) { Start-UsageFetch }
     }
 
+    if (($now - $script:lastInterruptCheck).TotalSeconds -ge 2) {
+        $script:lastInterruptCheck = $now
+        Check-Interrupted
+    }
+
     # Maskot "error" sekilas (alat gagal) kembali normal setelah 2 detik.
     if ($script:mascotMode -eq 'error' -and $now -ge $script:errorFlashUntil -and -not ($script:notif -and $script:notif.kind -eq 'error')) { Update-Compact }
 
+    $dragging = $Expanded.IsMouseCaptureWithin
+    if ($script:rebuildAfterDrag -and -not $dragging) {
+        $script:rebuildAfterDrag = $false
+        if ($script:isExpanded) { Expand }
+    }
     if ($script:notif -and $now -ge $script:notifUntil -and -not $script:hover) { Dismiss-Notif }
-    elseif ($script:isExpanded -and -not $script:notif -and -not $script:hover -and ($now - $script:leaveAt).TotalMilliseconds -gt 350) { Collapse }
+    elseif ($script:isExpanded -and -not $dragging -and -not $script:notif -and -not $script:hover -and ($now - $script:leaveAt).TotalMilliseconds -gt 350) { Collapse }
 
     # Sembunyikan saat video/game fullscreen (kecuali ada notifikasi). Dicek tiap detak (0,5 detik)
     # dan harus terdeteksi 2x berturut-turut (±1 detik) supaya jendela sesaat tidak membuatnya

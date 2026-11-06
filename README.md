@@ -105,6 +105,8 @@ tidak berat karena ikut membangunkan WSL):
 - **Arahkan kursor** ke pil untuk melihat detail kuota dan sesi aktif.
 - **Klik** pil/notifikasi untuk membuka terminal sesi terkait. Baris sesi di panel juga bisa diklik.
 - **Seret ke kiri/kanan** untuk memindahkan pil, termasuk ke monitor lain.
+- **Geser slider Volume** di panel hover untuk mengatur besar suara notifikasi. Suara contoh diputar
+  saat slider dilepas, dan pilihan Anda diingat.
 - Tombol di panel hover:
 
   | Ikon | Fungsi |
@@ -140,7 +142,7 @@ Frame dan palet maskot ada di `icons/ogin-pixel.json`.
   | `notifySeconds` | `8` | Lama notifikasi tampil |
   | `sound` | `true` | Suara notifikasi |
   | `soundVolume` | `1.0` | Volume (0–1) |
-  | `soundDone`, `soundAttention` | file di `sounds/` | Path Windows ke suara sendiri |
+  | `soundDone`, `soundAttention`, `soundError` | file di `sounds/` | Path Windows ke suara sendiri |
   | `hideOnFullscreen` | `true` | Sembunyi saat video/game fullscreen |
   | `exitWhenWslStops` | `true` | Keluar saat WSL berhenti |
   | `usageApiFallback` | `false` | API kuota cadangan (lihat di bawah) |
@@ -172,7 +174,13 @@ sendiri.
 
 ## Batasan
 
-- Klik notifikasi memunculkan **jendela** Windows Terminal, belum bisa memilih **tab** yang tepat.
+- Klik notifikasi memilih **tab** sesi di Windows Terminal dengan mengganti judul tab sesaat. Profil WSL
+  bawaan mengunci judul tab, jadi kalau ada dua tab atau lebih yang dikunci dengan nama distro yang sama,
+  island hanya memunculkan jendelanya. Untuk membuka kuncinya, tambahkan
+  `"suppressApplicationTitle": false` pada profil distro di setelan Windows Terminal.
+- Di VS Code, klik memunculkan jendela folder sesi, tetapi belum bisa memilih panel terminalnya.
+- Pembatalan perintah (Esc) terdeteksi dari transcript Claude Code karena tidak ada hook untuk itu;
+  format transcript bukan API resmi, jadi deteksinya bisa berhenti bekerja setelah Claude Code diperbarui.
 - Autostart saat terminal dibuka hanya untuk **bash**. Pengguna zsh/fish tetap mendapat island saat
   Claude Code dipakai (lewat hook).
 - Kuota hanya diperbarui saat Claude Code dipakai (kecuali API cadangan dinyalakan).
@@ -194,7 +202,7 @@ sendiri.
   masalah: buka [issue](https://github.com/amimhayden22/origin-island/issues).
 - Kode: [MIT](LICENSE).
 - Maskot **ogin** dan ikon: karya Gus Khamim untuk proyek ini.
-- Suara notifikasi: dari sumber suara bebas royalti.
+- Suara notifikasi: dari [Pixabay](https://pixabay.com/id/). Suara notifikasi gagal: *error notification* oleh Universfield.
 
 Origin Island adalah proyek independen dan **tidak berafiliasi** dengan Anthropic atau Apple.
 *Claude* dan *Claude Code* adalah merek dagang Anthropic; *Dynamic Island* adalah merek dagang Apple.
