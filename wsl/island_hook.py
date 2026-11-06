@@ -56,6 +56,20 @@ def terminal_kind():
     return ""
 
 
+def session_tty():
+    """pts terminal sesi ini. stdin hook berupa pipe, jadi cari lewat proses induk (claude)."""
+    pid = os.getppid()
+    while pid > 1:
+        with open(f"/proc/{pid}/stat", encoding="utf-8", errors="replace") as f:
+            # Nama proses bisa berisi spasi: field setelah ')' = state ppid pgrp session tty_nr
+            fields = f.read().rsplit(")", 1)[1].split()
+        tty_nr = int(fields[4])
+        if os.major(tty_nr) == 136:  # 136 = /dev/pts/*
+            return f"/dev/pts/{os.minor(tty_nr)}"
+        pid = int(fields[1])
+    return ""
+
+
 def main():
     out = sys.argv[sys.argv.index("--out") + 1]
     data = json.load(sys.stdin)
@@ -70,6 +84,10 @@ def main():
         "cwd": cwd,
         "distro": os.environ.get("WSL_DISTRO_NAME", ""),
         "term": terminal_kind(),
+        # Supaya klik bisa memilih tab yang tepat dan island bisa mendeteksi pembatalan
+        # (Claude Code tidak mengirim hook apa pun saat perintah dibatalkan).
+        "tty": session_tty(),
+        "transcript": data.get("transcript_path", ""),
     }
     if event == "Stop":
         msg = data.get("last_assistant_message") or last_assistant_text(data.get("transcript_path"))

@@ -45,7 +45,7 @@ import json, os, sys
 new_path, old_path, cred, events, distro, hook_dir = sys.argv[1:7]
 cfg = {"pollSeconds": 300, "notifySeconds": 8, "sound": True, "hideOnFullscreen": True, "exitWhenWslStops": True,
        "usageApiFallback": False}
-keep = ("pollSeconds", "notifySeconds", "sound", "soundVolume", "soundDone", "soundAttention",
+keep = ("pollSeconds", "notifySeconds", "sound", "soundVolume", "soundDone", "soundAttention", "soundError",
         "hideOnFullscreen", "exitWhenWslStops", "usageApiFallback")
 for p in (old_path, new_path):          # yang baru menang
     if os.path.exists(p):
