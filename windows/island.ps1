@@ -1,4 +1,4 @@
-# Origin Island - notifikasi ala Dynamic Island untuk Claude Code (WSL) di Windows.
+# Origin Island - notifikasi ala Dynamic Island untuk Claude Code di Windows (langsung maupun lewat WSL).
 # Jalankan dengan: powershell -NoProfile -ExecutionPolicy Bypass -STA -File island.ps1
 
 Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, System.Net.Http, UIAutomationClient, UIAutomationTypes
@@ -221,7 +221,7 @@ public static class IslandNative {
         <!-- Tombol X: hanya saat pil terbuka. Merah saat disorot/diklik. -->
         <Border x:Name="CloseBtn" Grid.Column="3" Width="22" Height="22" CornerRadius="11" Margin="8,0,0,0"
                 Background="Transparent" VerticalAlignment="Center" Visibility="Collapsed"
-                ToolTip="Tutup Origin Island (menyala lagi saat Claude dipakai atau terminal WSL dibuka)"/>
+                ToolTip="Tutup Origin Island (menyala lagi saat Claude dipakai)"/>
       </Grid>
     </Grid>
     <StackPanel x:Name="Expanded" Width="344" Margin="0,46,0,16" HorizontalAlignment="Center"
@@ -659,12 +659,13 @@ function Focus-SessionTab($t) {
 # Munculkan terminal tempat sesi berjalan. $t butuh: term ('wt'/'vscode'), cwd, distro, tty.
 function Open-Terminal($t) {
     try {
-        if ($t.term -eq 'vscode' -and $t.cwd -and $t.distro) {
+        if ($t.term -eq 'console' -and [IslandNative]::FocusWindowOfClass('ConsoleWindowClass')) { return }
+        if ($t.term -eq 'vscode' -and $t.cwd) {
             # Membuka folder yang sama = VS Code memunculkan jendela yang sudah membuka folder itu.
             $code = Get-Command code.cmd, code -ErrorAction SilentlyContinue | Select-Object -First 1
             if ($code) {
-                $uri = "vscode-remote://wsl+$($t.distro)$($t.cwd)"
-                Start-Process -FilePath $code.Source -ArgumentList '--folder-uri', $uri -WindowStyle Hidden
+                $codeArgs = if ($t.distro) { '--folder-uri', "vscode-remote://wsl+$($t.distro)$($t.cwd)" } else { "`"$($t.cwd)`"" }
+                Start-Process -FilePath $code.Source -ArgumentList $codeArgs -WindowStyle Hidden
                 return
             }
         }
@@ -855,9 +856,18 @@ function New-TextButton($label, $bg, $hoverBg, $fg, $onClick) {
 
 # Uninstall lewat tombol: jalankan skrip uninstall di WSL (salinannya ada di ~/.claude/island,
 # jadi tetap bisa walau folder repo sudah dihapus), lalu island menutup dirinya sendiri.
-$CanUninstall = [bool]($cfg.distro -and $cfg.hookDir)
+$CanUninstall = [bool](($cfg.distro -and $cfg.hookDir) -or $cfg.nativeInstall)
 function Start-Uninstall {
     try {
+        if ($cfg.nativeInstall) {
+            # Skrip ini juga melepas versi WSL bila ikut terpasang.
+            $uninstallLog = Join-Path $env:TEMP 'origin-island-uninstall.log'
+            $cmd = '"{0}" /c powershell.exe -NoProfile -ExecutionPolicy Bypass -File "{1}" > "{2}" 2>&1' -f $env:ComSpec, (Join-Path $AppDir 'uninstall.ps1'), $uninstallLog
+            Log "uninstall dimulai lewat tombol (log: $uninstallLog)"
+            [void](New-Object -ComObject WScript.Shell).Run($cmd, 0, $false)
+            $win.Close()
+            return
+        }
         # C:\Users\x\AppData\Local\OriginIsland -> /mnt/c/Users/x/AppData/Local/OriginIsland
         $appWsl = '/mnt/' + $AppDir.Substring(0, 1).ToLower() + ($AppDir.Substring(2) -replace '\\', '/')
         $uninstaller = "$($cfg.hookDir)/island_uninstall.sh"
@@ -1330,7 +1340,7 @@ function Dismiss-Notif {
     if ($script:hover) { Expand } else { Collapse }
 }
 
-# --- event dari WSL ----------------------------------------------------------
+# --- event dari hook Claude Code ----------------------------------------------
 function Handle-Event($e) {
     $id = [string]$e.session
     $proj = if ($e.project) { [string]$e.project } else { 'claude' }
@@ -1424,7 +1434,8 @@ function Test-SessionIdle($id, $s) {
     $at -gt [double]$s.promptTs -and ($now - $at) -ge $IdleGraceSeconds
 }
 
-function WslPath($s, $path) { "\\wsl.localhost\$($s.distro)" + $path.Replace('/', '\') }
+# Path file milik sesi, dilihat dari Windows. Sesi Windows sudah memakai path Windows.
+function WslPath($s, $path) { if ($s.distro) { "\\wsl.localhost\$($s.distro)" + $path.Replace('/', '\') } else { $path } }
 
 # Claude Code tidak mengirim hook saat perintah dibatalkan: kembalikan sesinya ke idle dari file
 # status dan transcript, tanpa notifikasi "selesai" karena Claude memang tidak selesai.
@@ -1432,7 +1443,7 @@ function Check-Interrupted {
     $changed = $false
     foreach ($id in @($script:sessions.Keys)) {
         $s = $script:sessions[$id]
-        if ($s.state -notin 'working', 'attention' -or -not $s.distro) { continue }
+        if ($s.state -notin 'working', 'attention') { continue }
         $hit = $false
         if ($s.statusFile) { try { $hit = Test-SessionIdle $id $s } catch {} }
         if (-not $hit -and $s.transcript) { try { $hit = Test-TurnInterrupted (WslPath $s $s.transcript) ([double]$s.promptTs) } catch {} }
@@ -1528,7 +1539,7 @@ function Start-UsageFetch {
     $script:forceApi = $false
     try { $tok = Get-Token }
     catch {
-        $script:usageErr = 'Kredensial tidak terbaca - pastikan WSL & Claude Code sudah login'
+        $script:usageErr = 'Kredensial tidak terbaca - pastikan Claude Code sudah login'
         Log "kredensial: $_"; Refresh-UI; return
     }
     $req = New-Object System.Net.Http.HttpRequestMessage([System.Net.Http.HttpMethod]::Get, 'https://api.anthropic.com/api/oauth/usage')
@@ -1562,7 +1573,7 @@ function Poll-UsageTask {
             $script:apiBackoff = 0
         }
         401 {
-            $script:usageErr = 'Token kedaluwarsa - jalankan claude di WSL sekali'
+            $script:usageErr = 'Token kedaluwarsa - jalankan claude sekali'
             $script:forceToken = $true
             $script:nextUsage = [datetime]::Now.AddMinutes(5)
         }

@@ -13,7 +13,6 @@ import os
 import sys
 import time
 
-CACHE = os.path.expanduser("~/.claude/island/last_usage.json")
 WINDOWS = ["five_hour", "seven_day", "seven_day_opus", "seven_day_sonnet"]
 RESET_TOLERANCE = 60  # detik; waktu reset dari server bisa sedikit bergeser
 
@@ -68,24 +67,22 @@ def merge(usage, last):
 
 def save(usage, out):
     """Tulis ke disk Windows hanya bila angkanya berubah (statusline dipanggil sering).
-    Mengembalikan angka gabungan semua sesi."""
+    Mengembalikan angka gabungan semua sesi, termasuk sesi Windows yang menulis file yang sama."""
     try:
-        with open(CACHE) as f:
+        with open(out, encoding="utf-8-sig") as f:
             last = json.load(f)
     except (OSError, ValueError):
         last = {}
-    usage = merge(usage, last.get("usage") or {})
+    previous = {k: v for k, v in last.items() if k in WINDOWS and isinstance(v, dict)}
+    usage = merge(usage, previous)
     # Tetap tulis ulang tiap 5 menit supaya island tahu datanya masih segar.
-    if last.get("usage") == usage and time.time() - last.get("ts", 0) < 300:
+    if previous == usage and time.time() - last.get("ts", 0) < 300:
         return usage
     record = dict(usage, source="statusline", ts=time.time())
     tmp = out + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(record, f)
     os.replace(tmp, out)
-    os.makedirs(os.path.dirname(CACHE), exist_ok=True)
-    with open(CACHE, "w") as f:
-        json.dump({"usage": usage, "ts": time.time()}, f)
     return usage
 
 

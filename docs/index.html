@@ -6,7 +6,7 @@
   <title>Origin Island — Notifikasi ala Dynamic Island untuk Claude Code</title>
   <meta name="description" content="Pil kecil di tepi atas layar Windows yang memberi tahu saat Claude Code selesai, butuh izin, atau gagal, lengkap dengan sisa kuota Claude. Gratis dan open-source.">
   <meta property="og:title" content="Origin Island">
-  <meta property="og:description" content="Notifikasi ala Dynamic Island untuk Claude Code di Windows + WSL.">
+  <meta property="og:description" content="Notifikasi ala Dynamic Island untuk Claude Code di Windows.">
   <meta property="og:type" content="website">
   <meta property="og:image" content="img/done.png">
   <link rel="icon" href="assets/ogin/ogin-idle.gif" type="image/gif">
@@ -40,6 +40,12 @@
     .install { display: grid; gap: var(--space-md); }
     @media (min-width: 52rem) { .install { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     .req { margin-top: var(--space-lg); }
+    .install-main { display: grid; gap: var(--space-sm); padding: var(--space-lg); border: 2px solid var(--primary); border-radius: var(--radius-lg); background: var(--bg-surface); }
+    .install-main > * { min-width: 0; }
+    .install-main p { color: var(--text-muted); }
+    .install-manual { display: grid; gap: var(--space-sm); margin-top: var(--space-2xl); }
+    .install-manual p { color: var(--text-muted); }
+    .install-manual .code-card__bar strong { font-weight: var(--fw-medium, 500); }
     .credit { display: inline-flex; align-items: center; gap: 0.4rem; }
     .credit .icon { width: 1rem; height: 1rem; }
     .footer-note { margin-top: var(--space-sm); color: var(--text-muted); font-size: var(--fs-xs); max-width: 70ch; }
@@ -182,7 +188,7 @@
   <section class="hero">
     <div class="container split">
       <div class="hero__copy">
-        <span class="eyebrow">Untuk Claude Code di Windows + WSL</span>
+        <span class="eyebrow">Untuk Claude Code di Windows, dengan atau tanpa WSL</span>
         <h1>Tahu kapan Claude selesai, tanpa terus mengecek terminal</h1>
         <p class="lead">Origin Island adalah pil kecil ala Dynamic Island di tepi atas layar. Ia memberi tahu saat Claude Code selesai, butuh izin, atau gagal, lengkap dengan sisa kuota Claude Anda.</p>
         <div class="cluster">
@@ -218,7 +224,7 @@
         <div class="feature"><span class="feature__icon"><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-laptop"/></svg></span><h3>Klik, langsung ke terminal</h3><p>Klik notifikasi untuk memunculkan Windows Terminal atau VS Code tempat sesi itu berjalan.</p></div>
         <div class="feature"><span class="feature__icon"><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-users"/></svg></span><h3>Banyak sesi sekaligus</h3><p>Pantau beberapa sesi Claude Code paralel beserta statusnya masing-masing.</p></div>
         <div class="feature"><span class="feature__icon"><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-monitor"/></svg></span><h3>Multi-monitor</h3><p>Seret pil ke kiri, kanan, atau ke monitor lain. Posisinya diingat, dan pil bersembunyi saat ada video fullscreen.</p></div>
-        <div class="feature"><span class="feature__icon"><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-shield"/></svg></span><h3>Ringan &amp; aman</h3><p>Hanya berjalan selama WSL hidup, tidak mencuri fokus, dan tidak menyentuh token login Anda.</p></div>
+        <div class="feature"><span class="feature__icon"><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-shield"/></svg></span><h3>Ringan &amp; aman</h3><p>Hanya menyala saat Claude Code dipakai, tidak mencuri fokus, dan tidak menyentuh token login Anda.</p></div>
       </div>
     </div>
   </section>
@@ -266,7 +272,7 @@
           <li><span class="btn-chip"><svg class="icon" aria-hidden="true"><use href="#ii-bell"/></svg></span><div><strong>Tes suara</strong><p>Memutar suara notifikasi untuk mengecek volume.</p></div></li>
           <li><span class="btn-chip"><svg class="icon" aria-hidden="true"><use href="#ii-center"/></svg></span><div><strong>Ke tengah</strong><p>Memindahkan pil ke tengah atas layar tempat ia berada (utama maupun monitor kedua).</p></div></li>
           <li><span class="btn-chip btn-chip--danger"><svg class="icon" aria-hidden="true"><use href="#ii-trash"/></svg></span><div><strong>Uninstall</strong><p>Menghapus Origin Island beserta hook-nya. Selalu meminta konfirmasi dulu.</p></div></li>
-          <li><span class="btn-chip btn-chip--danger"><svg class="icon" aria-hidden="true"><use href="#ii-exit"/></svg></span><div><strong>Tutup (kanan atas)</strong><p>Menutup pil. Pil menyala lagi saat Claude dipakai atau terminal WSL dibuka.</p></div></li>
+          <li><span class="btn-chip btn-chip--danger"><svg class="icon" aria-hidden="true"><use href="#ii-exit"/></svg></span><div><strong>Tutup (kanan atas)</strong><p>Menutup pil. Pil menyala lagi saat Claude dipakai.</p></div></li>
         </ul>
         <dl class="kv gestures">
           <dt><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-move"/></svg>Seret pil</dt><dd>Geser ke kiri, kanan, atau ke monitor lain. Posisinya diingat.</dd>
@@ -307,35 +313,59 @@
       <header class="section-head">
         <span class="eyebrow">Cara pasang</span>
         <h2 id="h-pasang">Pasang dalam satu menit</h2>
-        <p class="lead">Paling mudah: minta Claude Code yang memasangnya untuk Anda.</p>
+        <p class="lead">Satu pesan ke Claude Code, dan selesai.</p>
       </header>
 
-      <ol class="process" style="--process-cols: 3">
-        <li><strong>Buka Claude Code di WSL</strong><p>Jalankan <code>claude</code> dari terminal WSL (bukan PowerShell).</p></li>
-        <li><strong>Minta Claude memasang</strong><p>Salin pesan di bawah. Kalau Claude meminta izin, setujui: installer mengubah setelan Claude Code dan <code>~/.bashrc</code>.</p></li>
-        <li><strong>Buka ulang sesi Claude Code</strong><p>Keluar lalu jalankan <code>claude</code> lagi, kemudian kirim satu prompt. Tanpa ini, angka kuota tidak diperbarui.</p></li>
+      <!-- Cara utama: cukup minta Claude -->
+      <div class="install-main">
+        <span class="eyebrow">Paling mudah</span>
+        <h3>Sudah punya Claude Code? Minta Claude yang memasang</h3>
+        <p>Tidak perlu tahu Windows atau WSL. Salin pesan ini ke Claude Code, dan Claude memilih cara yang tepat.</p>
+        <div class="code-card">
+          <pre><code id="kode-claude">Tolong pasang Origin Island dari https://github.com/amimhayden22/origin-island. Ikuti bagian "Untuk Claude Code" di README-nya.</code></pre>
+        </div>
+        <div><button class="btn btn--accent" type="button" data-copy-target="#kode-claude"><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-copy"/></svg>Salin pesan</button></div>
+      </div>
+
+      <ol class="process" style="--process-cols: 3; margin-top: var(--space-lg)">
+        <li><strong>Kirim pesannya</strong><p>Tempel ke Claude Code, lalu kirim.</p></li>
+        <li><strong>Setujui izinnya</strong><p>Claude meminta izin karena pemasangan mengubah setelan Claude Code.</p></li>
+        <li><strong>Buka ulang Claude Code</strong><p>Keluar lalu jalankan <code>claude</code> lagi, kemudian kirim satu prompt. Tanpa ini, angka kuota tidak diperbarui.</p></li>
       </ol>
 
-      <div class="install" style="margin-top: var(--space-lg)">
-        <div class="code-card">
-          <div class="code-card__bar"><strong>Pesan untuk Claude Code</strong><button class="btn btn--secondary btn--sm" type="button" data-copy-target="#kode-claude"><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-copy"/></svg>Salin</button></div>
-          <pre><code id="kode-claude">Tolong install https://github.com/amimhayden22/origin-island — clone repo-nya lalu jalankan ./install.sh, baca README-nya dulu.</code></pre>
-        </div>
-        <div class="code-card">
-          <div class="code-card__bar"><strong>Atau manual dari terminal WSL</strong><button class="btn btn--secondary btn--sm" type="button" data-copy-target="#kode-manual"><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-copy"/></svg>Salin</button></div>
-          <pre><code id="kode-manual">git clone https://github.com/amimhayden22/origin-island.git
+      <!-- Cara manual -->
+      <div class="install-manual">
+        <h3>Lebih suka memasang sendiri?</h3>
+        <p>Di mana Anda menjalankan Claude Code? <strong>Tidak yakin? Pilih Windows.</strong> Kalau Claude Code ternyata ada di WSL, installer akan memberi tahu.</p>
+        <div class="tabs">
+          <div class="tabs__list" role="tablist" aria-label="Tempat menjalankan Claude Code">
+            <button type="button" role="tab" id="t-win" aria-controls="p-win" aria-selected="true">Windows</button>
+            <button type="button" role="tab" id="t-wsl" aria-controls="p-wsl" aria-selected="false">Windows + WSL</button>
+          </div>
+          <div role="tabpanel" id="p-win" aria-labelledby="t-win">
+            <div class="code-card">
+              <div class="code-card__bar"><strong>Claude dibuka dari PowerShell atau Command Prompt. Jalankan di PowerShell:</strong><button class="btn btn--secondary btn--sm" type="button" data-copy-target="#kode-win"><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-copy"/></svg>Salin</button></div>
+              <pre><code id="kode-win">irm https://raw.githubusercontent.com/amimhayden22/origin-island/main/install.ps1 | iex</code></pre>
+            </div>
+          </div>
+          <div role="tabpanel" id="p-wsl" aria-labelledby="t-wsl" hidden>
+            <div class="code-card">
+              <div class="code-card__bar"><strong>Claude dibuka dari terminal Ubuntu/WSL, biasanya untuk programmer:</strong><button class="btn btn--secondary btn--sm" type="button" data-copy-target="#kode-manual"><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-copy"/></svg>Salin</button></div>
+              <pre><code id="kode-manual">git clone https://github.com/amimhayden22/origin-island.git
 cd origin-island
 ./install.sh</code></pre>
+            </div>
+          </div>
         </div>
       </div>
 
       <div class="card req">
         <h3>Persyaratan</h3>
         <dl class="kv">
-          <dt>Sistem</dt><dd>Windows 10/11 dengan WSL2. PowerShell sudah bawaan Windows.</dd>
-          <dt>Claude Code</dt><dd>Terpasang di dalam WSL dan sudah login.</dd>
+          <dt>Sistem</dt><dd>Windows 10/11. PowerShell sudah bawaan Windows. WSL tidak wajib.</dd>
+          <dt>Claude Code</dt><dd>Terpasang di Windows atau di dalam WSL, dan sudah login.</dd>
           <dt>Kuota</dt><dd>Butuh langganan Claude Pro/Max. Dengan API key, notifikasi tetap jalan tanpa kuota.</dd>
-          <dt>Lainnya</dt><dd><code>python3</code> dan <code>git</code> di WSL (sudah ada di Ubuntu bawaan).</dd>
+          <dt>Khusus WSL</dt><dd><code>python3</code> dan <code>git</code> (sudah ada di Ubuntu bawaan).</dd>
         </dl>
       </div>
     </div>
@@ -354,12 +384,16 @@ cd origin-island
           <div><p>Ya. Secara default Origin Island hanya memakai fitur resmi Claude Code (hook dan statusline). Ia tidak membaca token login dan tidak menghubungi server mana pun.</p></div>
         </details>
         <details name="faq">
+          <summary>Apakah harus memakai WSL?<svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-plus"/></svg></summary>
+          <div><p>Tidak. Origin Island bisa dipakai untuk Claude Code di Windows maupun di WSL, dan keduanya tampil dalam satu pil. Bedanya, di Windows tanpa WSL klik notifikasi memunculkan jendela terminal, tetapi belum bisa memilih tab yang tepat.</p></div>
+        </details>
+        <details name="faq">
           <summary>Dari mana angka kuotanya?<svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-plus"/></svg></summary>
           <div><p>Dari data yang dikirim Claude Code ke statusline setiap kali Anda memakainya. Kalau Claude Code lama tidak dipakai, angka terakhir tetap tampil beserta jam pembaruannya.</p></div>
         </details>
         <details name="faq">
           <summary>Apakah membuat laptop berat?<svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-plus"/></svg></summary>
-          <div><p>Tidak. Pil hanya berjalan selama WSL hidup, memakai sekitar 2–3% dari satu core CPU, dan bersembunyi saat ada video atau game fullscreen.</p></div>
+          <div><p>Tidak. Pil memakai sekitar 2–3% dari satu core CPU, dan bersembunyi saat ada video atau game fullscreen.</p></div>
         </details>
         <details name="faq">
           <summary>Kenapa kuota saya tidak tampil?<svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-plus"/></svg></summary>
@@ -367,7 +401,7 @@ cd origin-island
         </details>
         <details name="faq">
           <summary>Bagaimana cara menghapusnya?<svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-plus"/></svg></summary>
-          <div><p>Klik ikon tempat sampah di panel pil, lalu konfirmasi. Bisa juga dengan <code>./uninstall.sh</code> dari folder repo. Semua hook, setelan, dan file ikut dibersihkan.</p></div>
+          <div><p>Klik ikon tempat sampah di panel pil, lalu konfirmasi. Bisa juga dengan <code>./uninstall.sh</code> dari folder repo di WSL. Semua hook, setelan, dan file ikut dibersihkan.</p></div>
         </details>
         <details name="faq">
           <summary>Apakah mendukung AI selain Claude?<svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-plus"/></svg></summary>
@@ -394,7 +428,7 @@ cd origin-island
     <div class="site-footer__grid">
       <div class="site-footer__brand">
         <svg class="brand__logo" role="img" aria-label="Origin"><use href="assets/origin-sprite.svg#origin-logo"/></svg>
-        <p>Notifikasi ala Dynamic Island untuk Claude Code di Windows + WSL.</p>
+        <p>Notifikasi ala Dynamic Island untuk Claude Code di Windows.</p>
       </div>
       <div><h4>Proyek</h4><ul>
         <li><a href="https://github.com/amimhayden22/origin-island">Repositori GitHub</a></li>

@@ -46,7 +46,7 @@ new_path, old_path, cred, events, distro, hook_dir = sys.argv[1:7]
 cfg = {"pollSeconds": 300, "notifySeconds": 8, "sound": True, "hideOnFullscreen": True, "exitWhenWslStops": True,
        "usageApiFallback": False}
 keep = ("pollSeconds", "notifySeconds", "sound", "soundVolume", "soundDone", "soundAttention", "soundError",
-        "hideOnFullscreen", "exitWhenWslStops", "usageApiFallback")
+        "hideOnFullscreen", "exitWhenWslStops", "usageApiFallback", "nativeInstall")
 for p in (old_path, new_path):          # yang baru menang
     if os.path.exists(p):
         try:
@@ -56,6 +56,8 @@ for p in (old_path, new_path):          # yang baru menang
             pass
 cfg["pollSeconds"] = max(300, int(cfg.get("pollSeconds", 300)))
 cfg.update(credentialsPath=cred, eventsPath=events, distro=distro, hookDir=hook_dir)   # dipakai tombol Uninstall
+if os.path.exists(os.path.join(os.path.dirname(new_path), "uninstall.ps1")):
+    cfg["nativeInstall"] = True   # versi Windows juga terpasang
 with open(new_path, "w", encoding="utf-8") as f:
     json.dump(cfg, f, indent=2)
 EOF

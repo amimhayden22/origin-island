@@ -1,6 +1,6 @@
 # Origin Island
 
-**Notifikasi ala Dynamic Island untuk [Claude Code](https://claude.com/claude-code) di Windows + WSL.**
+**Notifikasi ala Dynamic Island untuk [Claude Code](https://claude.com/claude-code) di Windows, dengan atau tanpa WSL.**
 
 Pil kecil di tepi atas layar yang memberi tahu saat Claude selesai, butuh izin, atau gagal, lengkap
 dengan maskot pixel **ogin** dan sisa kuota Claude Anda, tanpa perlu membuka `/usage`.
@@ -37,36 +37,52 @@ Dibuat oleh **[Gus Khamim](https://guskhamim.com)** · [Situs resmi](https://ami
 
 | | |
 |---|---|
-| **Windows 10/11 + WSL2** | PowerShell & WPF sudah bawaan Windows, tidak perlu memasang apa pun |
-| **Claude Code di dalam WSL**, sudah login | Notifikasi bekerja lewat hook Claude Code |
-| **`python3` di WSL** | Sudah ada di Ubuntu bawaan |
+| **Windows 10/11** | PowerShell & WPF sudah bawaan Windows, tidak perlu memasang apa pun |
+| **Claude Code**, sudah login | Di Windows atau di dalam WSL. Notifikasi bekerja lewat hook Claude Code |
+| **`python3` dan `git`** | Hanya untuk versi WSL, sudah ada di Ubuntu bawaan |
 | **Langganan Claude (Pro/Max)** | Untuk menampilkan **kuota**. Dengan API key, notifikasi tetap jalan tetapi kuota tidak tampil |
 | **Claude Code versi terbaru** | Versi lama belum mengirim data kuota ke statusline, jadi kuota tidak tampil |
 
 ## Pasang
 
-### Cara 1: minta Claude Code yang memasang (paling mudah)
+### Cara termudah: minta Claude Code yang memasang
 
-1. Buka terminal **WSL**, lalu jalankan `claude`.
-2. Kirim pesan ini ke Claude Code:
+Sudah punya Claude Code? Tidak perlu memilih apa pun, cukup salin pesan ini ke Claude Code:
 
-   > Tolong install https://github.com/amimhayden22/origin-island — clone repo-nya lalu jalankan
-   > `./install.sh`, baca README-nya dulu.
+> Tolong pasang Origin Island dari https://github.com/amimhayden22/origin-island. Ikuti bagian
+> "Untuk Claude Code" di README-nya.
 
-3. Kalau Claude Code meminta izin (installer mengubah `~/.claude/settings.json` dan `~/.bashrc`),
-   setujui. Kalau Claude Code menolak menjalankannya, jalankan sendiri dari prompt Claude Code:
+Setujui kalau Claude meminta izin. Setelah selesai, **keluar dari Claude Code lalu jalankan `claude` lagi**,
+kemudian kirim satu prompt. Pil muncul di tengah atas layar, dan kuota tampil setelah prompt pertama.
 
-   ```
-   ! cd origin-island && ./install.sh
-   ```
+### Untuk Claude Code
 
-4. **Keluar dari Claude Code lalu jalankan `claude` lagi**, kemudian kirim satu prompt. Sesi yang sudah
-   berjalan saat pemasangan tidak memuat statusline, jadi angka kuotanya tidak diperbarui. Pil muncul di
-   tengah atas layar, dan kuota tampil setelah prompt pertama.
+Bagian ini petunjuk untuk Claude Code yang diminta memasang Origin Island:
 
-Tidak perlu membuat folder sendiri; `git clone` sudah membuat folder `origin-island`.
+1. Tentukan tempat Anda berjalan. WSL bila `uname -r` berisi `microsoft`, Windows bila berjalan langsung
+   di Windows.
+2. **Di WSL:** jalankan `git clone https://github.com/amimhayden22/origin-island.git`, lalu
+   `cd origin-island && ./install.sh`.
+3. **Di Windows:** jalankan di PowerShell:
+   `powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/amimhayden22/origin-island/main/install.ps1 | iex"`.
+4. Sebutkan ke pengguna bahwa installer mengubah `settings.json` Claude Code (dan `~/.bashrc` di WSL).
+5. Akhiri dengan meminta pengguna **membuka ulang sesi Claude Code**, karena sesi yang sedang berjalan tidak
+   memuat statusline baru sehingga kuotanya tidak diperbarui.
 
-### Cara 2: manual dari terminal WSL
+Kalau Claude Code tidak bisa menjalankannya, pasang sendiri dengan cara di bawah.
+
+### Pasang sendiri
+
+Pilih sesuai tempat Anda menjalankan `claude`. **Tidak yakin? Pilih Windows.** Kalau Claude Code ternyata
+ada di WSL, installer akan memberi tahu.
+
+**Windows** (Claude dibuka dari PowerShell atau Command Prompt), jalankan di PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/amimhayden22/origin-island/main/install.ps1 | iex
+```
+
+**Windows + WSL** (Claude dibuka dari terminal Ubuntu/WSL, biasanya untuk programmer):
 
 ```bash
 git clone https://github.com/amimhayden22/origin-island.git
@@ -78,24 +94,28 @@ Setelah itu **buka ulang sesi Claude Code yang sedang berjalan** (hook langsung 
 baru dimuat di sesi baru), lalu kirim satu prompt.
 
 > **Perhatikan:** kuota hanya tampil bila login dengan langganan **Pro/Max** dan Anda **belum** punya
-> statusline sendiri (statusline yang sudah ada tidak ditimpa). Pengguna **zsh** tidak mendapat
+> statusline sendiri (statusline yang sudah ada tidak ditimpa). Di versi WSL, pengguna **zsh** tidak mendapat
 > autostart saat terminal dibuka, tetapi pil tetap menyala begitu Claude Code dipakai.
+
+Kalau keduanya dipasang, sesi Windows dan WSL tampil dalam **satu pil yang sama**.
 
 ### Apa saja yang diubah installer
 
 | Lokasi | Perubahan |
 |---|---|
 | `%LOCALAPPDATA%\OriginIsland\` | Aplikasi Windows, ikon, suara, `config.json`, log |
-| `~/.claude/island/` | Skrip hook, statusline, launcher, dan uninstall |
+| `~/.claude/island/` (WSL) atau `%LOCALAPPDATA%\OriginIsland\hooks\` (Windows) | Skrip hook, statusline, dan uninstall |
 | `~/.claude/settings.json` | Menambah **hook** dan **`statusLine`** (cadangan: `settings.json.bak-island`). Statusline milik Anda yang sudah ada **tidak** ditimpa |
-| `~/.bashrc` | Satu blok `# >>> origin-island >>>` untuk menyalakan island saat terminal dibuka |
+| `~/.bashrc` (hanya WSL) | Satu blok `# >>> origin-island >>>` untuk menyalakan island saat terminal dibuka |
 
 Hapus semuanya kapan saja lewat tombol **Uninstall** (ikon tempat sampah) di panel island, atau
-`./uninstall.sh` dari terminal WSL. Keduanya menjalankan skrip yang sama.
+`./uninstall.sh` dari terminal WSL, atau `uninstall.ps1` di folder aplikasi untuk versi Windows. Semuanya
+ikut melepas versi lain bila keduanya terpasang.
 
 ### Kapan island berjalan
 
-Island **hanya berjalan selama WSL hidup**, tidak ikut menyala saat Windows login (supaya startup
+Island tidak ikut menyala saat Windows login. Versi Windows menyala saat Claude Code dipakai dan tetap
+berjalan sampai ditutup atau Windows keluar. Versi WSL **hanya berjalan selama WSL hidup** (supaya startup
 tidak berat karena ikut membangunkan WSL):
 - menyala saat terminal WSL dibuka atau saat Claude Code dipakai (hook `SessionStart` /
   `UserPromptSubmit`), termasuk setelah ditutup dengan tombol X;
@@ -180,6 +200,7 @@ sendiri.
   island hanya memunculkan jendelanya. Untuk membuka kuncinya, tambahkan
   `"suppressApplicationTitle": false` pada profil distro di setelan Windows Terminal.
 - Di VS Code, klik memunculkan jendela folder sesi, tetapi belum bisa memilih panel terminalnya.
+- Di Windows tanpa WSL, klik memunculkan jendela terminal, tetapi belum bisa memilih tab yang tepat.
 - Pembatalan perintah (Esc) terdeteksi dari file status sesi dan transcript Claude Code karena tidak ada
   hook untuk itu; keduanya bukan API resmi, jadi deteksinya bisa berhenti bekerja setelah Claude Code
   diperbarui.

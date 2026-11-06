@@ -20,6 +20,12 @@ patterns="'*$APP_WIN\\island.ps1*'"
 powershell.exe -NoProfile -Command "\$p = @($patterns); Get-CimInstance Win32_Process -Filter \"Name='powershell.exe'\" | Where-Object { \$c = \$_.CommandLine; \$p | Where-Object { \$c -like \$_ } } | ForEach-Object { Stop-Process -Id \$_.ProcessId -Force }" || true
 cd /   # jangan berada di folder yang akan dihapus
 
+# Versi Windows ikut terpasang: lepas hook-nya dulu, karena skripnya akan ikut terhapus.
+if [[ -f "$APP_WSL/uninstall.ps1" ]]; then
+  echo "==> Melepas hook Windows"
+  (cd /mnt/c && powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$APP_WIN\\uninstall.ps1" -HooksOnly) || echo "   (gagal, lewati)"
+fi
+
 echo "==> Menghapus hook & statusline dari ~/.claude/settings.json"
 python3 "$HERE/settings_hooks.py" uninstall || echo "   (gagal, lewati)"
 
