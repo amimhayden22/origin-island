@@ -29,7 +29,7 @@ Dibuat oleh **[Gus Khamim](https://guskhamim.com)** · [Situs resmi](https://ami
 |---|---|
 | **Siaga** — maskot + cincin kuota (luar: 5 jam, dalam: mingguan) | ![Siaga](docs/idle.png) |
 | **Bekerja** — maskot bekerja, nama proyek tampil | ![Bekerja](docs/working.png) |
-| **Hover** — detail kuota, sesi aktif, tombol | ![Hover](docs/hover.png) |
+| **Hover** — detail kuota, sesi aktif, volume, tombol | ![Hover](docs/hover.png) |
 | **Butuh izin** — notifikasi + suara | ![Butuh izin](docs/attention.png) |
 | **Selesai** — cuplikan balasan terakhir Claude + suara | ![Selesai](docs/done.png) |
 
