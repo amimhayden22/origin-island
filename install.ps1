@@ -5,6 +5,11 @@ $ErrorActionPreference = 'Stop'
 $Ref = if ($env:ORIGIN_ISLAND_REF) { $env:ORIGIN_ISLAND_REF } else { 'main' }
 $Utf8 = New-Object Text.UTF8Encoding $false
 
+function Test-WslCommand($name) {
+    if (-not (Get-Command wsl.exe -ErrorAction SilentlyContinue)) { return $false }
+    try { $null = wsl.exe -e bash -lc "command -v $name" 2>$null; $LASTEXITCODE -eq 0 } catch { $false }
+}
+
 # Dijalankan lewat "irm | iex": belum ada salinan repo, jadi unduh dulu.
 $Here = $PSScriptRoot
 $download = $null
@@ -20,18 +25,28 @@ if (-not $Here -or -not (Test-Path (Join-Path $Here 'windows\island.ps1'))) {
 }
 
 try {
-    # Claude Code tidak ada di Windows, mungkin dipakai dari WSL.
-    if (-not (Get-Command claude -ErrorAction SilentlyContinue) -and
-        -not (Test-Path "$env:USERPROFILE\.local\bin\claude.exe")) {
-        $inWsl = $false
-        if (Get-Command wsl.exe -ErrorAction SilentlyContinue) {
-            try { $null = wsl.exe -e bash -lc 'command -v claude' 2>$null; $inWsl = $LASTEXITCODE -eq 0 } catch {}
-        }
-        if ($inWsl) {
-            Write-Host 'Claude Code terdeteksi di WSL, bukan di Windows.' -ForegroundColor Yellow
-            Write-Host 'Buka terminal WSL lalu jalankan ./install.sh dari repo Origin Island.' -ForegroundColor Yellow
-            return
-        }
+    $hasClaude = [bool](Get-Command claude -ErrorAction SilentlyContinue) -or (Test-Path "$env:USERPROFILE\.local\bin\claude.exe")
+    $claudeInWsl = Test-WslCommand 'claude'
+
+    # Pilihan 1 = hanya sesi Windows; pilihan 2 = sesi Windows dan WSL, dalam satu pil.
+    $default = if (-not $hasClaude -and $claudeInWsl) { '2' } else { '1' }
+    $choice = switch ($env:ORIGIN_ISLAND_TARGET) { 'windows' { '1' } 'wsl' { '2' } default { $null } }
+    if (-not $choice -and [Console]::IsInputRedirected) { $choice = $default }   # mis. dijalankan oleh Claude Code
+    while (-not $choice) {
+        Write-Host ''
+        Write-Host 'Pasang Origin Island untuk:'
+        Write-Host '  [1] Windows (direkomendasikan)'
+        Write-Host '  [2] Windows + WSL (biasanya untuk programmer)'
+        if ($default -eq '2') { Write-Host 'Claude Code terdeteksi di WSL, jadi pilihan 2 yang disarankan.' -ForegroundColor Yellow }
+        $answer = (Read-Host "Pilih [$default]").Trim()
+        if (-not $answer) { $answer = $default }
+        if ($answer -in '1', '2') { $choice = $answer } else { Write-Host 'Ketik 1 atau 2.' -ForegroundColor Yellow }
+    }
+    if ($choice -eq '2' -and -not (Test-WslCommand 'python3')) {
+        Write-Host 'WSL atau python3 di dalamnya tidak ditemukan, jadi hanya versi Windows yang dipasang.' -ForegroundColor Yellow
+        $choice = '1'
+    }
+    if ($choice -eq '1' -and -not $hasClaude) {
         Write-Host '! Claude Code belum terdeteksi di Windows. Hook tetap dipasang dan aktif setelah Claude Code terpasang.' -ForegroundColor Yellow
     }
 
@@ -100,6 +115,13 @@ try {
 
     Write-Host '==> Menjalankan Origin Island'
     Start-Process -FilePath 'wscript.exe' -ArgumentList "`"$App\start-island.vbs`""
+
+    if ($choice -eq '2') {
+        Write-Host '==> Memasang untuk WSL'
+        $wslHere = (wsl.exe -e wslpath -a $Here | Out-String).Trim()
+        & wsl.exe -e bash "$wslHere/install.sh"
+        if ($LASTEXITCODE -ne 0) { Write-Host '! Pemasangan untuk WSL gagal. Versi Windows tetap terpasang.' -ForegroundColor Yellow }
+    }
 
     Write-Host ''
     Write-Host 'Selesai. Origin Island menyala saat Claude Code dipakai.' -ForegroundColor Green

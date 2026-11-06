@@ -336,26 +336,10 @@
       <!-- Cara manual -->
       <div class="install-manual">
         <h3>Lebih suka memasang sendiri?</h3>
-        <p>Di mana Anda menjalankan Claude Code? <strong>Tidak yakin? Pilih Windows.</strong> Kalau Claude Code ternyata ada di WSL, installer akan memberi tahu.</p>
-        <div class="tabs">
-          <div class="tabs__list" role="tablist" aria-label="Tempat menjalankan Claude Code">
-            <button type="button" role="tab" id="t-win" aria-controls="p-win" aria-selected="true">Windows</button>
-            <button type="button" role="tab" id="t-wsl" aria-controls="p-wsl" aria-selected="false">Windows + WSL</button>
-          </div>
-          <div role="tabpanel" id="p-win" aria-labelledby="t-win">
-            <div class="code-card">
-              <div class="code-card__bar"><strong>Claude dibuka dari PowerShell atau Command Prompt. Jalankan di PowerShell:</strong><button class="btn btn--secondary btn--sm" type="button" data-copy-target="#kode-win"><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-copy"/></svg>Salin</button></div>
-              <pre><code id="kode-win">irm https://raw.githubusercontent.com/amimhayden22/origin-island/main/install.ps1 | iex</code></pre>
-            </div>
-          </div>
-          <div role="tabpanel" id="p-wsl" aria-labelledby="t-wsl" hidden>
-            <div class="code-card">
-              <div class="code-card__bar"><strong>Claude dibuka dari terminal Ubuntu/WSL, biasanya untuk programmer:</strong><button class="btn btn--secondary btn--sm" type="button" data-copy-target="#kode-manual"><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-copy"/></svg>Salin</button></div>
-              <pre><code id="kode-manual">git clone https://github.com/amimhayden22/origin-island.git
-cd origin-island
-./install.sh</code></pre>
-            </div>
-          </div>
+        <p>Buka PowerShell, jalankan perintah ini, lalu pilih saat ditanya: <strong>Windows</strong> (direkomendasikan) atau <strong>Windows + WSL</strong> (biasanya untuk programmer). Tidak yakin? Tekan Enter saja.</p>
+        <div class="code-card">
+          <div class="code-card__bar"><strong>Jalankan di PowerShell</strong><button class="btn btn--secondary btn--sm" type="button" data-copy-target="#kode-win"><svg class="icon" aria-hidden="true"><use href="assets/origin-sprite.svg#i-copy"/></svg>Salin</button></div>
+          <pre><code id="kode-win">irm https://raw.githubusercontent.com/amimhayden22/origin-island/main/install.ps1 | iex</code></pre>
         </div>
       </div>
 

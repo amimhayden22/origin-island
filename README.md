@@ -65,6 +65,7 @@ Bagian ini petunjuk untuk Claude Code yang diminta memasang Origin Island:
    `cd origin-island && ./install.sh`.
 3. **Di Windows:** jalankan di PowerShell:
    `powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/amimhayden22/origin-island/main/install.ps1 | iex"`.
+   Menu pilihan otomatis dilewati saat dijalankan oleh Claude Code.
 4. Sebutkan ke pengguna bahwa installer mengubah `settings.json` Claude Code (dan `~/.bashrc` di WSL).
 5. Akhiri dengan meminta pengguna **membuka ulang sesi Claude Code**, karena sesi yang sedang berjalan tidak
    memuat statusline baru sehingga kuotanya tidak diperbarui.
@@ -73,22 +74,22 @@ Kalau Claude Code tidak bisa menjalankannya, pasang sendiri dengan cara di bawah
 
 ### Pasang sendiri
 
-Pilih sesuai tempat Anda menjalankan `claude`. **Tidak yakin? Pilih Windows.** Kalau Claude Code ternyata
-ada di WSL, installer akan memberi tahu.
-
-**Windows** (Claude dibuka dari PowerShell atau Command Prompt), jalankan di PowerShell:
+Buka PowerShell, lalu jalankan:
 
 ```powershell
 irm https://raw.githubusercontent.com/amimhayden22/origin-island/main/install.ps1 | iex
 ```
 
-**Windows + WSL** (Claude dibuka dari terminal Ubuntu/WSL, biasanya untuk programmer):
+Installer akan bertanya:
 
-```bash
-git clone https://github.com/amimhayden22/origin-island.git
-cd origin-island
-./install.sh
+```text
+Pasang Origin Island untuk:
+  [1] Windows (direkomendasikan)
+  [2] Windows + WSL (biasanya untuk programmer)
 ```
+
+**Tidak yakin? Tekan Enter saja.** Kalau Claude Code hanya ada di WSL, installer menyarankan pilihan 2. Pengguna
+WSL juga bisa memasang dari terminal WSL dengan `git clone`, lalu `./install.sh`.
 
 Setelah itu **buka ulang sesi Claude Code yang sedang berjalan** (hook langsung aktif, tetapi statusline
 baru dimuat di sesi baru), lalu kirim satu prompt.
@@ -97,7 +98,7 @@ baru dimuat di sesi baru), lalu kirim satu prompt.
 > statusline sendiri (statusline yang sudah ada tidak ditimpa). Di versi WSL, pengguna **zsh** tidak mendapat
 > autostart saat terminal dibuka, tetapi pil tetap menyala begitu Claude Code dipakai.
 
-Kalau keduanya dipasang, sesi Windows dan WSL tampil dalam **satu pil yang sama**.
+Dengan pilihan 2, sesi Windows dan WSL tampil dalam **satu pil yang sama**.
 
 ### Apa saja yang diubah installer
 
