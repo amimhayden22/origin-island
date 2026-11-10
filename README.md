@@ -96,6 +96,7 @@ Petunjuk bagi Claude Code yang diminta memasang Origin Island:
 | Lonceng | Memutar suara untuk mengecek volume |
 | Panah ke tengah | Mengembalikan pil ke tengah atas layar |
 | Tempat sampah | Menghapus Origin Island, dengan konfirmasi |
+| Garis di kanan atas | Mengecilkan pil jadi maskot saja. Klik maskot untuk menampilkan lagi |
 | X di kanan atas | Menutup pil sampai Claude dipakai lagi |
 
 ## Keamanan dan pemakaian laptop

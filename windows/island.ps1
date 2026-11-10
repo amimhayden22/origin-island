@@ -205,10 +205,11 @@ public static class IslandNative {
             HorizontalAlignment="Center" VerticalAlignment="Top" Width="240" Height="36"/>
     <Grid x:Name="Compact" Height="36" VerticalAlignment="Top" HorizontalAlignment="Center"
           Width="{Binding ElementName=Pill, Path=ActualWidth}">
-      <Grid Margin="14,0,10,0">
+      <Grid x:Name="CompactRow" Margin="14,0,10,0">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="Auto"/>
           <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="Auto"/>
           <ColumnDefinition Width="Auto"/>
           <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
@@ -218,8 +219,11 @@ public static class IslandNative {
                    FontFamily="Segoe UI Variable Text, Segoe UI" VerticalAlignment="Center"
                    TextTrimming="CharacterEllipsis"/>
         <StackPanel x:Name="Trailing" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center"/>
-        <!-- Tombol X: hanya saat pil terbuka. Merah saat disorot/diklik. -->
-        <Border x:Name="CloseBtn" Grid.Column="3" Width="22" Height="22" CornerRadius="11" Margin="8,0,0,0"
+        <!-- Tombol minimize & X: hanya saat pil terbuka. X merah saat disorot/diklik. -->
+        <Border x:Name="MinBtn" Grid.Column="3" Width="22" Height="22" CornerRadius="11" Margin="8,0,0,0"
+                Background="Transparent" VerticalAlignment="Center" Visibility="Collapsed"
+                ToolTip="Kecilkan jadi maskot saja (klik maskot untuk menampilkan lagi)"/>
+        <Border x:Name="CloseBtn" Grid.Column="4" Width="22" Height="22" CornerRadius="11" Margin="8,0,0,0"
                 Background="Transparent" VerticalAlignment="Center" Visibility="Collapsed"
                 ToolTip="Tutup Origin Island (menyala lagi saat Claude dipakai)"/>
       </Grid>
@@ -233,7 +237,7 @@ public static class IslandNative {
 '@
 
 $win = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $xaml))
-foreach ($n in 'Island', 'Pill', 'MascotHost', 'StatusText', 'Trailing', 'Expanded', 'CloseBtn') {
+foreach ($n in 'Island', 'Pill', 'CompactRow', 'MascotHost', 'StatusText', 'Trailing', 'Expanded', 'MinBtn', 'CloseBtn') {
     Set-Variable -Name $n -Value $win.FindName($n) -Scope Script
 }
 
@@ -415,6 +419,10 @@ function New-Ring([double]$size, [double]$thick, [double]$pct, $color) {
 $CompactW = 240.0
 $ExpandedW = 380.0
 $CompactH = 36.0
+# Mode kecil (minimize): hanya maskot (30 px) dengan sisi kiri-kanan sama lebar.
+$MiniW = 48.0
+$MiniPad = '9,0,9,0'
+$CompactPad = '14,0,10,0'
 # Pegas halus: sedikit memantul seperti Dynamic Island, tidak berlebihan.
 $Spring = New-Object System.Windows.Media.Animation.BackEase -Property @{ Amplitude = 0.18; EasingMode = 'EaseOut' }
 $Smooth = New-Object System.Windows.Media.Animation.CubicEase -Property @{ EasingMode = 'EaseOut' }
@@ -436,6 +444,7 @@ $script:sessions = @{}         # session_id -> @{ project; state; ts; cwd; distr
 $script:notif = $null          # @{ kind; title; project; body; term; cwd; distro; tty }
 $script:notifUntil = [datetime]::MinValue
 $script:isExpanded = $false
+$script:minimized = $false     # pil dikecilkan jadi maskot saja lewat tombol minimize
 $script:confirmUninstall = $false
 $script:hover = $false
 $script:leaveAt = [datetime]::MinValue
@@ -587,6 +596,7 @@ function Drag-End {
     $Island.ReleaseMouseCapture()
     if (-not $d) { return }
     if ($d.moved) { Save-Position; return }
+    if ($script:minimized) { Restore-Island; return }
     # Klik biasa: buka terminal sesi terkait (notifikasi, atau sesi paling relevan).
     $target = $script:notif
     if (-not $target) {
@@ -1179,11 +1189,14 @@ function Ensure-Expanded {
 }
 
 function Expand {
+    # Mode kecil: jangan membesar (hover/notifikasi); maskot saja yang ikut berganti status.
+    if ($script:minimized) { Update-Compact; return }
     $wasExpanded = $script:isExpanded
     $script:isExpanded = $true
     Update-Compact
     Ensure-Expanded
     $Expanded.Visibility = 'Visible'
+    $MinBtn.Visibility = 'Visible'
     $CloseBtn.Visibility = 'Visible'
     # Tinggi diukur dengan lebar isi yang sebenarnya (Width tetap di XAML) + margin.
     $Expanded.Measure((New-Object System.Windows.Size([double]::PositiveInfinity, [double]::PositiveInfinity)))
@@ -1214,10 +1227,32 @@ function Collapse {
     if ($script:confirmUninstall) { $script:confirmUninstall = $false; $script:expandedDirty = $true }   # batal otomatis
     $Expanded.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $null)
     $Expanded.Visibility = 'Collapsed'   # isi tetap disimpan (cache) untuk hover berikutnya
+    $MinBtn.Visibility = 'Collapsed'
     $CloseBtn.Visibility = 'Collapsed'
     Update-Compact
-    Animate $Pill ([System.Windows.FrameworkElement]::WidthProperty) $CompactW 340 $Smooth
+    $w = if ($script:minimized) { $MiniW } else { $CompactW }
+    Animate $Pill ([System.Windows.FrameworkElement]::WidthProperty) $w 340 $Smooth
     Animate $Pill ([System.Windows.FrameworkElement]::HeightProperty) $CompactH 340 $Smooth
+}
+
+# Kecilkan pil jadi maskot saja: teks & cincin kuota disembunyikan, hover tidak membuka panel.
+# Notifikasi tetap berbunyi dan maskot tetap berganti status. Klik maskot = tampilkan lagi.
+function Minimize-Island {
+    $script:minimized = $true
+    $StatusText.Visibility = 'Collapsed'
+    $Trailing.Visibility = 'Collapsed'
+    $CompactRow.Margin = $MiniPad
+    Log 'dikecilkan lewat tombol minimize'
+    Collapse
+}
+
+function Restore-Island {
+    $script:minimized = $false
+    $Island.ToolTip = $null
+    $CompactRow.Margin = $CompactPad
+    $StatusText.Visibility = 'Visible'
+    $Trailing.Visibility = 'Visible'
+    Expand   # kursor sedang di atas pil, jadi langsung buka seperti saat hover
 }
 
 # Status maskot: idle, thinking, working, waiting, done, error (lihat ogin-pixel.json).
@@ -1277,6 +1312,7 @@ function Update-Compact {
     Set-MascotMode $mode
     Update-Trailing (Get-Limits)
     if ($text -ne $script:compactKey) { $script:compactKey = $text; $StatusText.Text = $text }
+    if ($script:minimized) { $Island.ToolTip = "$text  ·  klik untuk menampilkan lagi" }
 }
 
 function Refresh-UI {
@@ -1706,6 +1742,20 @@ $CloseBtn.Add_MouseEnter({ Set-IconColor $CloseIcon $C.Red; $CloseBtn.Background
 $CloseBtn.Add_MouseLeave({ Set-IconColor $CloseIcon '#8E8E93'; $CloseBtn.Background = Brush '#00000000' })
 $CloseBtn.Add_MouseLeftButtonDown({ param($s, $e) $e.Handled = $true; Set-IconColor $CloseIcon '#FF6961'; $CloseBtn.Background = Brush '#59FF453A' })
 $CloseBtn.Add_MouseLeftButtonUp({ param($s, $e) $e.Handled = $true; Log 'ditutup lewat tombol X'; $win.Close() })
+
+# Tombol minimize: abu-abu -> putih saat disorot.
+$MinIcon = New-Icon 'minimize' 16 '#8E8E93'
+$MinIcon.HorizontalAlignment = 'Center'; $MinIcon.VerticalAlignment = 'Center'
+$MinBtn.Child = $MinIcon
+$MinBtn.Cursor = 'Hand'
+$MinBtn.Add_MouseEnter({ Set-IconColor $MinIcon $C.Text; $MinBtn.Background = Brush '#26FFFFFF' })
+$MinBtn.Add_MouseLeave({ Set-IconColor $MinIcon '#8E8E93'; $MinBtn.Background = Brush '#00000000' })
+$MinBtn.Add_MouseLeftButtonDown({ param($s, $e) $e.Handled = $true; $MinBtn.Background = Brush '#40FFFFFF' })
+$MinBtn.Add_MouseLeftButtonUp({
+        param($s, $e) $e.Handled = $true
+        $MinBtn.Background = Brush '#00000000'; Set-IconColor $MinIcon '#8E8E93'
+        try { Minimize-Island } catch { Log "minimize: $_ @ $($_.InvocationInfo.ScriptLineNumber)" }
+    })
 
 $win.Add_SourceInitialized({ [IslandNative]::Setup((Hwnd)) })
 $win.Add_Loaded({
