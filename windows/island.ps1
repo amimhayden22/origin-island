@@ -508,8 +508,8 @@ $FreshMinutes = 10
 
 # --- posisi & monitor --------------------------------------------------------
 # Pil selalu menempel di tepi atas; user menggesernya kiri/kanan sendiri.
-# position.json: { device, x } -> monitor + posisi kiri jendela (piksel fisik) persis seperti
-# ditinggalkan user. Tanpa file itu (atau monitornya hilang): tengah atas monitor utama.
+# position.json: { device, dx } -> monitor + jarak tepi kiri jendela dari tepi kiri monitor itu
+# (piksel fisik), persis seperti ditinggalkan user. Tanpa file itu (atau monitornya hilang): tengah atas monitor utama.
 $PositionPath = Join-Path $AppDir 'position.json'
 $AlivePath = Join-Path $AppDir 'alive'
 $script:screenSig = ''
@@ -531,13 +531,20 @@ function Place-Island {
     if ($pos) { $m = $mons | Where-Object { $_.Name -eq $pos.device } | Select-Object -First 1 }
     if (-not $m) { $pos = $null; $m = $mons | Where-Object { $_.Primary } | Select-Object -First 1 }
     if (-not $m) { $m = $mons[0] }
+    # Pindah dulu ke monitor tujuan: lebar jendela (piksel fisik) bisa berubah bila skala DPI-nya beda.
+    [IslandNative]::MoveTo((Hwnd), [int]$m.L, $m.T)
     $r = [IslandNative]::WindowRect((Hwnd))
     $w = $r.R - $r.L
     if ($pos) {
-        # Jaga agar titik tengah pil tetap di dalam monitor itu (mis. resolusi berubah).
-        $x = [math]::Min($m.L + $m.W - $w / 2, [math]::Max($m.L - $w / 2, [double]$pos.x))
+        # dx = jarak dari tepi kiri monitor. File lama hanya punya x absolut, yang ikut bergeser
+        # saat susunan monitor berubah (mis. monitor eksternal utama dicabut -> layar laptop jadi
+        # mulai di 0), sehingga pil bisa terlempar setengah keluar layar.
+        $dx = if ($null -ne $pos.dx) { [double]$pos.dx } else { [double]$pos.x - $m.L }
+        $x = $m.L + $dx
     }
     else { $x = $m.L + ($m.W - $w) / 2 }
+    # Pil harus terlihat utuh di monitor itu (resolusi/susunan monitor bisa berubah).
+    $x = [math]::Max($m.L, [math]::Min($m.L + $m.W - $w, $x))
     [IslandNative]::MoveTo((Hwnd), [int]$x, $m.T)
 }
 
@@ -554,7 +561,7 @@ function Save-Position {
     $m = Monitor-At ($r.L + ($r.R - $r.L) / 2)
     if (-not $m) { return }
     [IslandNative]::MoveTo((Hwnd), $r.L, $m.T)   # menempel ke tepi atas monitor itu
-    @{ device = $m.Name; x = $r.L } | ConvertTo-Json | Set-Content -LiteralPath $PositionPath -Encoding UTF8
+    @{ device = $m.Name; dx = $r.L - $m.L } | ConvertTo-Json | Set-Content -LiteralPath $PositionPath -Encoding UTF8
 }
 
 # Ke tengah atas monitor tempat pil SEKARANG berada (bukan selalu monitor utama), lalu simpan.

@@ -70,6 +70,7 @@ Petunjuk bagi Claude Code yang diminta memasang Origin Island:
 - **Klik ke terminal:** membuka terminal tempat Claude berjalan.
 - **Banyak sesi:** semua sesi tampil di satu pil.
 - **Mengikuti layar:** pil bisa digeser ke monitor lain, dan bersembunyi saat ada video atau game layar penuh.
+  Posisinya diingat per monitor, dan pil tetap utuh di layar saat monitor eksternal dicabut.
 - **Maskot Ogin:** roket pixel yang menunjukkan apa yang sedang Claude lakukan.
 
 ## Tampilan
@@ -86,7 +87,7 @@ Petunjuk bagi Claude Code yang diminta memasang Origin Island:
 
 - **Arahkan kursor** ke pil untuk melihat kuota, sesi aktif, dan pengaturan.
 - **Klik** pil, notifikasi, atau baris sesi untuk membuka terminalnya.
-- **Geser** pil untuk memindahkannya.
+- **Geser** pil untuk memindahkannya. Posisinya diingat, juga setelah monitor dicabut atau dipasang.
 
 | Ikon di panel | Fungsi |
 |---|---|
